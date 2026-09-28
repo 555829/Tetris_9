@@ -23,7 +23,7 @@ public class Board extends JPanel implements ActionListener {//
 		boolean isPaused = false;
 		int numLinesRemoved = 0;
 		int curX = 0;
-		int curY = 0;
+		int curY = 0;//
 		JLabel statusbar;
 		Shape curPiece;
 		Tetrominoes[] board;
