@@ -111,7 +111,7 @@ public class Board extends JPanel implements ActionListener {//
 				drawSquare(g, 0 + x * squareWidth(), boardTop + (BoardHeight - y - 1) * squareHeight(),
 						curPiece.getShape());
 			}
-		}
+		}//
 	}
 
 	private void dropDown() {
