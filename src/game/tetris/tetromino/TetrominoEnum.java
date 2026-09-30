@@ -1,5 +1,5 @@
-package Tetris;
+package game.tetris.tetromino;
 
-public enum Tetrominoes {
+public enum TetrominoEnum {
 	NoShape, ZShape, SShape, LineShape, TShape, SquareShape, LShape, MirroredLShape
 }
