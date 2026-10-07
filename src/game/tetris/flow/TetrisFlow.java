@@ -32,7 +32,7 @@ public final class TetrisFlow
 
     private int score;
     private int lines;
-    private int level = 1;
+    private int level;
 
     private int gravityFrames;
     private int groundedFrames;
@@ -42,14 +42,14 @@ public final class TetrisFlow
             ActivePiece activePiece,
             TetrominoQueue queue,
             timerClass timer,
-            int startLevel)              // added
+            int startLevel)              //was: added
     {
         this.board = board;
         this.activePiece = activePiece;
         this.queue = queue;
         this.timer = timer;
-        this.startLevel = startLevel;    // added
-        this.level = startLevel;         // added
+        this.startLevel = startLevel;    //was: added
+        this.level = startLevel;         //was: added
     }
 
     // 게임 최초 시작

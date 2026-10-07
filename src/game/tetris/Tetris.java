@@ -10,7 +10,10 @@ import game.tetris.timer.*;
 // 클래스 바깥, Tetris를 필드로 가지는 상위 클래스에서 일정 시간 당 tick()을 해줘야 함.
 // UI를 위한 Render의 원본 데이터 source 담당하는 메소드도 여기서 밑에 클래스들 모아서 만들기
 public class Tetris {
-
+    public Tetris(InputTranslator input, TetrominoQueue queue)
+    {
+        this(input, queue, 1);
+    }
     // 게임의 논리 시간(프레임) 관리
     private final timerClass timer = new timerClass();
 
