@@ -48,10 +48,14 @@ public class GamePanel extends JPanel
     {
         this.game = game;
 
-        int boardW = game.board.getWidth() * CELL;
-        int boardH = game.board.getHeight() * CELL;
-        setPreferredSize(new Dimension(SIDE_WIDTH + boardW + SIDE_WIDTH, boardH + 2 * MARGIN));
+        setPreferredSize(sizeFor(game.board.getWidth(), game.board.getHeight()));
         setBackground(BACKGROUND);
+    }
+
+    /** Lets a window size itself for the game screen before any Tetris instance exists. */
+    public static Dimension sizeFor(int boardWidth, int boardHeight)
+    {
+        return new Dimension(2 * SIDE_WIDTH + boardWidth * CELL, boardHeight * CELL + 2 * MARGIN);
     }
 
     @Override

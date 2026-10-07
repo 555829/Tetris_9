@@ -35,14 +35,14 @@ public class Tetris {
     // 게임 진행 규칙 관리. 중력, HOLD, 점수, 게임 상태 등 처리
     public final TetrisFlow flow;
 
-    public Tetris(InputTranslator input, TetrominoQueue queue)
+    public Tetris(InputTranslator input, TetrominoQueue queue, int startLevel)
     {
         this.input = input;
         this.queue = queue;
 
         board = new Board(10, 20);
         activePiece = new ActivePiece(board);
-        flow = new TetrisFlow(board, activePiece, queue, timer);
+        flow = new TetrisFlow(board, activePiece, queue, timer, startLevel);
         inputHandler = new InputHandler(input, flow);
 
         flow.start();
