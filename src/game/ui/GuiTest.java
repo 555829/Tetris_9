@@ -1,5 +1,6 @@
 package game.ui;
 
+import game.ranking.RankingRepository;
 import game.tetris.Tetris;
 import game.tetris.input.InputSourceType;
 import game.tetris.input.InputTranslator;
@@ -10,7 +11,7 @@ import javax.swing.*;
 import java.awt.CardLayout;
 
 /**
- * Temporary launcher: main menu -> game -> back to menu on game over.
+ * Temporary launcher: main menu -> game -> game over / ranking -> main menu.
  * The real game loop belongs to GameManager; delete this once Main/GameManager are wired up.
  */
 public final class GuiTest
@@ -25,15 +26,17 @@ public final class GuiTest
 
     private static final String MENU = "menu";
     private static final String GAME = "game";
+    private static final String OVER = "over";
 
     private final JFrame frame = new JFrame("Tetris_9 - GUI test");
     private final CardLayout cards = new CardLayout();
     private final JPanel screens = new JPanel(cards);
+    private final RankingRepository ranking = RankingRepository.openDefault();
     private final MainMenuPanel menu;
+    private final GameOverPanel gameOver;
 
     private Tetris game;
     private GamePanel gamePanel;
-    private int bestScore;
     private int gameOverFrames;
 
     public static void main(String[] args)
@@ -44,11 +47,12 @@ public final class GuiTest
     private GuiTest()
     {
         menu = new MainMenuPanel(MAX_LEVEL, this::startGame);
+        gameOver = new GameOverPanel(ranking, this::showMenu);
         screens.add(menu, MENU);
+        screens.add(gameOver, OVER);
 
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.add(screens);
-        frame.getRootPane().setDefaultButton(menu.getStartButton());
 
         // Size the window for the game screen so switching cards doesn't resize it.
         // Creating a throwaway Tetris for this would register an extra global key listener.
@@ -56,16 +60,22 @@ public final class GuiTest
         frame.pack();
         frame.setResizable(false);
         frame.setLocationRelativeTo(null);
+
+        showMenu();
         frame.setVisible(true);
 
         new Timer(FRAME_MS, e -> tick()).start();
     }
 
+    private void showMenu()
+    {
+        menu.setBestScore(ranking.getBestScore());
+        cards.show(screens, MENU);
+        frame.getRootPane().setDefaultButton(menu.getStartButton());
+    }
+
     private void startGame(int level)
     {
-        // TetrisFlow has no starting-level option yet, so the chosen level is only logged for now.
-        System.out.println("Start requested at level " + level);
-
         if (gamePanel != null)
             screens.remove(gamePanel);
 
@@ -75,6 +85,9 @@ public final class GuiTest
 
         screens.add(gamePanel, GAME);
         cards.show(screens, GAME);
+
+        // Otherwise Enter during play would press the hidden START button and restart the game.
+        frame.getRootPane().setDefaultButton(null);
 
         // Space is hard drop; if the START button kept focus, Space would also "click" it.
         gamePanel.setFocusable(true);
@@ -92,14 +105,14 @@ public final class GuiTest
         if (!game.flow.isGameOver())
             return;
 
-        // Keep the GAME OVER overlay visible for a moment before returning to the menu.
+        // Keep the GAME OVER overlay visible for a moment before showing the ranking screen.
         if (++gameOverFrames < GAME_OVER_HOLD_FRAMES)
             return;
 
-        bestScore = Math.max(bestScore, game.flow.getScore());
-        menu.setBestScore(bestScore);
+        gameOver.showResult(game.flow.getScore(), game.flow.getLevel(), game.flow.getLines());
         game = null;
-        cards.show(screens, MENU);
+        cards.show(screens, OVER);
+        frame.getRootPane().setDefaultButton(gameOver.getPrimaryButton());
     }
 
     private static Tetris newGame(int level)
