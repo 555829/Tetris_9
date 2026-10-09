@@ -14,7 +14,7 @@ import java.awt.CardLayout;
  * Temporary launcher: main menu -> game -> game over / ranking -> main menu.
  * The real game loop belongs to GameManager; delete this once Main/GameManager are wired up.
  */
-public final class GuiTest
+public final class  GuiTest
 {
     // TetrisFlow counts gravity and lock delay in frames tuned for 60 fps.
     private static final int FRAME_MS = 1000 / 60;

@@ -14,12 +14,17 @@ public class InputTranslator {
         this.flow = flow;
     }
 
+    //====================================================================================================================
+    //컴파일 에러 나는 코드 수정
+    // case inputSourceType.Keyboard1 -> keyboard1
+    // case inputSourceType.AI -> AI
+    //=================================================================================================================
     private IInputSource createInputSource(InputSourceType type) {
         switch (type)
         {
-            case InputSourceType.Keyboard1 :
+            case Keyboard1 :
                 return new KeyboardInputSource(); //TODO : keyboard2 추가
-            case InputSourceType.AI:
+            case AI:
                 return new AIInputSource(flow, 5); // TODO: 설정 파일 읽는 것으로 변경
             default:
                 throw new IllegalArgumentException("Invalid InputSourceType");
