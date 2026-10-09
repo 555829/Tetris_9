@@ -21,6 +21,10 @@ public class TetrominoQueue {
         tetroQueue.add(pieceGenerator.getPiece());
         return tetroQueue.poll();
     }
+    public TetrominoEnum peekNextTetromino()
+    {
+        return tetroQueue.peek();
+    }
     public void reset()
     {
         tetroQueue.clear();

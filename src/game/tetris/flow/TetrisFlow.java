@@ -6,6 +6,7 @@ import game.tetris.tetromino.TetrominoEnum;
 import game.tetris.tetromino.TetrominoShape;
 import game.tetris.tetrominoQueue.TetrominoQueue;
 import game.tetris.timer.timerClass;
+import game.tetris.input.AI.PieceInfo;
 
 public final class TetrisFlow
 {
@@ -290,5 +291,28 @@ public final class TetrisFlow
 
     public int getLevel() { return level; }
 
-    public TetrominoEnum getHoldPiece() { return holdPiece; }
+    public TetrominoEnum getHoldPiece()
+    {
+        return holdPiece == TetrominoEnum.NoShape
+                ? queue.peekNextTetromino()
+                : holdPiece;
+    }
+
+    public Board getBoard()
+    {
+        return board;
+    }
+
+    public PieceInfo getCurrentPieceInfo()
+    {
+        if (!activePiece.hasPiece())
+            return null;
+
+        return new PieceInfo(
+                activePiece.getShape().getType(),
+                activePiece.getShape().getRotation(),
+                activePiece.getX(),
+                activePiece.getY()
+        );
+    }
 }

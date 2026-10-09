@@ -14,7 +14,7 @@ public final class TetrominoShape
     {
         this(type, RotationState.SPAWN);
     }
-    private TetrominoShape(TetrominoEnum type, RotationState rotation)
+    public TetrominoShape(TetrominoEnum type, RotationState rotation)
     {
         this.type = type;
         this.rotation = rotation;

@@ -118,7 +118,7 @@ public final class GuiTest
     private static Tetris newGame(int level)
     {
         return new Tetris(
-                new InputTranslator(InputSourceType.Keyboard1),
+                InputSourceType.Keyboard1,
                 new TetrominoQueue(new PieceGenerator_7Bag()),
                 level);
     }

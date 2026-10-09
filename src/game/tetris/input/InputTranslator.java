@@ -1,17 +1,29 @@
 package game.tetris.input;
 
+import game.tetris.flow.TetrisFlow;
+
 public class InputTranslator {
     private final IInputSource inputSource;
+    private TetrisFlow flow;
     private InputData curInputData = new InputData();
     private InputData preInputData = new InputData();
 
-    public InputTranslator(InputSourceType type)
+    public InputTranslator(InputSourceType type, TetrisFlow flow)
     {
         inputSource = createInputSource(type);
+        this.flow = flow;
     }
 
     private IInputSource createInputSource(InputSourceType type) {
-        return new KeyboardInputSource(); //TODO : keyboard2, AI 추가
+        switch (type)
+        {
+            case InputSourceType.Keyboard1 :
+                return new KeyboardInputSource(); //TODO : keyboard2 추가
+            case InputSourceType.AI:
+                return new AIInputSource(flow, 5); // TODO: 설정 파일 읽는 것으로 변경
+            default:
+                throw new IllegalArgumentException("Invalid InputSourceType");
+        }
     }
 
 
