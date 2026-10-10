@@ -3,14 +3,13 @@ package game.ui;
 import game.ranking.RankingEntry;
 import game.ranking.RankingRepository;
 
+import game.ui.common.UIUtils;
+
 import javax.swing.*;
 import java.awt.*;
 import java.util.List;
 
-/**
- * Shown after a game ends: final score, name entry when the score makes the top list,
- * and the current ranking board.
- */
+// 게임이 끝난 뒤 보여주는 화면: 최종 점수, 랭킹에 들면 이름 입력, 현재 랭킹표
 public class GameOverPanel extends JPanel
 {
     private static final Color BACKGROUND = new Color(24, 24, 32);
@@ -22,11 +21,12 @@ public class GameOverPanel extends JPanel
 
     private final RankingRepository ranking;
 
+    private final JLabel headlineLabel = label("게임 오버", 32f, ACCENT);
     private final JLabel resultLabel = new JLabel();
     private final JPanel entryRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0));
     private final JTextField nameField = new JTextField(10);
-    private final JButton saveButton = new JButton("SAVE");
-    private final JButton menuButton = new JButton("MENU");
+    private final JButton saveButton = new JButton("저장");
+    private final JButton menuButton = new JButton("메뉴");
     private final JPanel table = new JPanel(new GridLayout(0, 4, 8, 2));
 
     private int score;
@@ -44,15 +44,15 @@ public class GameOverPanel extends JPanel
         column.setOpaque(false);
         column.setLayout(new BoxLayout(column, BoxLayout.Y_AXIS));
 
-        column.add(centered(label("GAME OVER", 32f, ACCENT)));
+        column.add(centered(headlineLabel));
         column.add(Box.createVerticalStrut(8));
         resultLabel.setForeground(TEXT);
-        resultLabel.setFont(resultLabel.getFont().deriveFont(Font.BOLD, 14f));
+        resultLabel.setFont(UIUtils.getFont(Font.BOLD, 14f));
         column.add(centered(resultLabel));
         column.add(Box.createVerticalStrut(16));
 
         entryRow.setOpaque(false);
-        entryRow.add(label("NEW RECORD! NAME", 13f, HIGHLIGHT));
+        entryRow.add(label("신기록! 이름", 13f, HIGHLIGHT));
         nameField.setFont(nameField.getFont().deriveFont(14f));
         entryRow.add(nameField);
         style(saveButton);
@@ -60,7 +60,7 @@ public class GameOverPanel extends JPanel
         column.add(centered(entryRow));
         column.add(Box.createVerticalStrut(16));
 
-        column.add(centered(label("TOP " + RankingRepository.MAX_ENTRIES, 14f, TEXT)));
+        column.add(centered(label("랭킹 TOP " + RankingRepository.MAX_ENTRIES, 14f, TEXT)));
         column.add(Box.createVerticalStrut(6));
         table.setOpaque(false);
         column.add(centered(table));
@@ -71,23 +71,26 @@ public class GameOverPanel extends JPanel
 
         add(column);
 
-        // Enter in the name field saves too; the field's own listener also stops Enter
-        // from reaching the window's default button.
+        // 이름 칸에서 Enter를 눌러도 저장됨
+        // 텍스트 필드의 리스너가 Enter를 먼저 받아서 창의 기본 버튼까지 가지 않음
         saveButton.addActionListener(e -> saveEntry());
         nameField.addActionListener(e -> saveEntry());
         menuButton.addActionListener(e -> onMenu.run());
     }
 
-    /** Fills the screen for a just-finished game. Call before switching to this screen. */
-    public void showResult(int score, int level, int lines)
+    // 방금 끝난 게임 결과로 화면을 채움. 이 화면으로 전환하기 전에 호출
+    public void showResult(GameResult result)
     {
-        this.score = score;
-        this.level = level;
-        this.lines = lines;
+        this.score = result.getScore();
+        this.level = result.getLevel();
+        this.lines = result.getLines();
 
-        resultLabel.setText("SCORE " + score + "   LEVEL " + level + "   LINES " + lines);
+        headlineLabel.setText(headline(result));
+        resultLabel.setText("점수 " + score + "   레벨 " + level + "   줄 " + lines);
 
-        boolean qualifies = ranking.qualifies(score);
+        // 랭킹에는 1인용 점수만 기록함
+        // 대전은 상대가 지면 바로 끝나서 1인용 점수와 비교할 수 없기 때문
+        boolean qualifies = !result.getMode().isVersus() && ranking.qualifies(score);
         entryRow.setVisible(qualifies);
         nameField.setText("");
         refreshTable(-1);
@@ -96,7 +99,18 @@ public class GameOverPanel extends JPanel
             SwingUtilities.invokeLater(nameField::requestFocusInWindow);
     }
 
-    /** The button Enter should press: SAVE while a name is being entered, otherwise MENU. */
+    private static String headline(GameResult result)
+    {
+        if (!result.getMode().isVersus())
+            return "게임 오버";
+        if (result.getWinner() < 0)
+            return "무승부";
+        if (result.getWinner() == 0)
+            return "1P 승리!";
+        return result.getMode() == GameMode.VS_AI ? "AI 승리" : (result.getWinner() + 1) + "P 승리!";
+    }
+
+    // Enter가 누를 버튼: 이름 입력 중이면 저장, 아니면 메뉴
     public JButton getPrimaryButton()
     {
         return entryRow.isVisible() ? saveButton : menuButton;
@@ -118,7 +132,7 @@ public class GameOverPanel extends JPanel
     private void refreshTable(int highlightRank)
     {
         table.removeAll();
-        addRow("#", "NAME", "SCORE", "LV", DIM);
+        addRow("순위", "이름", "점수", "레벨", DIM);
 
         List<RankingEntry> top = ranking.getTop();
         for (int i = 0; i < RankingRepository.MAX_ENTRIES; i++)
@@ -136,7 +150,7 @@ public class GameOverPanel extends JPanel
             }
         }
 
-        // BoxLayout would otherwise stretch the grid to the widest row and spread the columns apart.
+        // 이걸 안 하면 BoxLayout이 표를 가로로 늘려서 열 간격이 벌어짐
         table.setMaximumSize(table.getPreferredSize());
         table.revalidate();
         table.repaint();
@@ -154,7 +168,7 @@ public class GameOverPanel extends JPanel
     {
         JLabel label = new JLabel(text);
         label.setForeground(color);
-        label.setFont(label.getFont().deriveFont(Font.BOLD, size));
+        label.setFont(UIUtils.getFont(Font.BOLD, size));
         return label;
     }
 
@@ -169,7 +183,7 @@ public class GameOverPanel extends JPanel
         button.setFocusPainted(false);
         button.setBackground(BUTTON);
         button.setForeground(TEXT);
-        button.setFont(button.getFont().deriveFont(Font.BOLD, 14f));
+        button.setFont(UIUtils.getFont(Font.BOLD, 14f));
         button.setBorder(BorderFactory.createEmptyBorder(6, 14, 6, 14));
     }
 }

@@ -7,16 +7,16 @@ import game.tetris.flow.TetrisFlow;
 import game.tetris.tetromino.TetrominoEnum;
 import game.tetris.tetromino.TetrominoShape;
 
+import game.ui.common.UIUtils;
+
 import javax.swing.JPanel;
 import java.awt.*;
 import java.util.EnumMap;
 import java.util.Map;
 
-/**
- * Read-only view of a single Tetris game.
- * It never changes game state, so one Tetris instance per panel is enough
- * to support 1P, vs-AI and 2P layouts (just place several panels side by side).
- */
+// Tetris 게임 하나를 그리기만 하는 화면 (읽기 전용)
+// 게임 상태를 바꾸지 않으므로 패널 하나당 Tetris 하나면 충분하고,
+// AI 대전/2인용은 패널을 여러 개 나란히 놓기만 하면 됨
 public class GamePanel extends JPanel
 {
     private static final int CELL = 28;
@@ -28,8 +28,8 @@ public class GamePanel extends JPanel
     private static final Color GRID = new Color(45, 45, 58);
     private static final Color TEXT = new Color(230, 230, 235);
 
-    // Keyed by enum value instead of ordinal(), so adding a new shape can't silently shift colors
-    // (the original Board.drawSquare indexed a color array with shape.ordinal()).
+    // ordinal() 대신 enum 값으로 색을 찾음. 새 블록 모양을 추가해도 색이 밀리지 않게 하기 위함
+    // (원본 Board.drawSquare는 shape.ordinal()로 색 배열을 참조했음)
     private static final Map<TetrominoEnum, Color> COLORS = new EnumMap<>(TetrominoEnum.class);
     static
     {
@@ -52,7 +52,7 @@ public class GamePanel extends JPanel
         setBackground(BACKGROUND);
     }
 
-    /** Lets a window size itself for the game screen before any Tetris instance exists. */
+    // Tetris 객체가 생기기 전에도 창 크기를 게임 화면에 맞출 수 있게 함
     public static Dimension sizeFor(int boardWidth, int boardHeight)
     {
         return new Dimension(2 * SIDE_WIDTH + boardWidth * CELL, boardHeight * CELL + 2 * MARGIN);
@@ -89,7 +89,7 @@ public class GamePanel extends JPanel
         {
             for (int x = 0; x < board.getWidth(); x++)
             {
-                // The falling piece lives on its own layer, so it must be drawn over locked cells.
+                // 떨어지는 블록은 별도 레이어에 있으므로 고정된 블록 위에 덧그려야 함
                 TetrominoEnum cell = piece.getCell(x, y);
                 if (cell == TetrominoEnum.NoShape)
                     cell = board.getCell(x, y);
@@ -102,13 +102,13 @@ public class GamePanel extends JPanel
 
     private void drawHold(Graphics2D g, int x, int y)
     {
-        drawLabel(g, "HOLD", x, y);
+        drawLabel(g, "홀드", x, y);
         drawPreview(g, game.flow.getHoldPiece(), x, y + 10);
     }
 
     private void drawNext(Graphics2D g, int x, int y)
     {
-        drawLabel(g, "NEXT", x, y);
+        drawLabel(g, "다음", x, y);
 
         TetrominoEnum[] queue = game.queue.getQueue();
         for (int i = 0; i < queue.length; i++)
@@ -119,12 +119,12 @@ public class GamePanel extends JPanel
     {
         TetrisFlow flow = game.flow;
         g.setColor(TEXT);
-        g.setFont(getFont().deriveFont(Font.BOLD, 13f));
-        g.drawString("SCORE", x, y);
+        g.setFont(UIUtils.getFont(Font.BOLD, 13f));
+        g.drawString("점수", x, y);
         g.drawString(String.valueOf(flow.getScore()), x, y + 18);
-        g.drawString("LEVEL", x, y + 50);
+        g.drawString("레벨", x, y + 50);
         g.drawString(String.valueOf(flow.getLevel()), x, y + 68);
-        g.drawString("LINES", x, y + 100);
+        g.drawString("줄", x, y + 100);
         g.drawString(String.valueOf(flow.getLines()), x, y + 118);
     }
 
@@ -145,11 +145,11 @@ public class GamePanel extends JPanel
         TetrisFlow flow = game.flow;
         String message;
         if (flow.isGameOver())
-            message = "GAME OVER";
+            message = "게임 오버";
         else if (flow.isMenuOpen())
-            message = "MENU";
+            message = "메뉴";
         else if (flow.isPaused())
-            message = "PAUSED";
+            message = "일시정지";
         else
             return;
 
@@ -159,7 +159,7 @@ public class GamePanel extends JPanel
         g.fillRect(boardX, boardY, w, h);
 
         g.setColor(TEXT);
-        g.setFont(getFont().deriveFont(Font.BOLD, 26f));
+        g.setFont(UIUtils.getFont(Font.BOLD, 26f));
         FontMetrics fm = g.getFontMetrics();
         g.drawString(message, boardX + (w - fm.stringWidth(message)) / 2, boardY + h / 2);
     }
@@ -167,7 +167,7 @@ public class GamePanel extends JPanel
     private void drawLabel(Graphics2D g, String text, int x, int y)
     {
         g.setColor(TEXT);
-        g.setFont(getFont().deriveFont(Font.BOLD, 13f));
+        g.setFont(UIUtils.getFont(Font.BOLD, 13f));
         g.drawString(text, x, y);
     }
 

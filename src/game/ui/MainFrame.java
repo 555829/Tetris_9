@@ -1,6 +1,7 @@
 package game.ui;
 
 import game.SettingsManager;
+import game.ranking.RankingRepository;
 import game.ui.outgame.*;
 import game.ui.outgame.popup.*;
 import javax.swing.*;
@@ -15,6 +16,17 @@ public class MainFrame extends JFrame {
     //패널 선언하기
     public static final String TAG_MENU = "MENU";
     public static final String TAG_SUB_MENU = "SUB_MENU";
+    public static final String TAG_GAME_SETUP = "GAME_SETUP";
+    public static final String TAG_GAME = "GAME";
+    public static final String TAG_GAME_OVER = "GAME_OVER";
+
+    private static final int MAX_LEVEL = 5;
+
+    //게임 화면 (모드/레벨 선택 -> 인게임 -> 결과/랭킹)
+    private final RankingRepository ranking = RankingRepository.openDefault();
+    private MainMenuPanel gameSetupPanel;
+    private GameScreen gameScreen;
+    private GameOverPanel gameOverPanel;
 
     //팝업 선언하기
     private SettingsPopup settingsPopup;
@@ -67,6 +79,13 @@ public class MainFrame extends JFrame {
         mainPanel.add(new StartMenuPanel(this), TAG_MENU);
         mainPanel.add(new SubMenuPanel(this), TAG_SUB_MENU);
 
+        gameSetupPanel = new MainMenuPanel(MAX_LEVEL, this::startGame, () -> showScreen(TAG_SUB_MENU));
+        gameScreen = new GameScreen(this::showGameOver);
+        gameOverPanel = new GameOverPanel(ranking, this::showGameSetup);
+        mainPanel.add(gameSetupPanel, TAG_GAME_SETUP);
+        mainPanel.add(gameScreen, TAG_GAME);
+        mainPanel.add(gameOverPanel, TAG_GAME_OVER);
+
         // 팝업 생성 및 추가
         settingsPopup = new SettingsPopup(this, settings);
         settingsPopup.setVisible(false);
@@ -88,9 +107,32 @@ public class MainFrame extends JFrame {
     //팝업 레이아웃
     //==================================================================================================================
     public void showScreen(String tag) {
+        // 다른 화면에서 설정된 기본 버튼이 남아 있으면 화면이 숨겨진 상태에서도 Enter에 반응함
+        getRootPane().setDefaultButton(null);
         cardLayout.show(mainPanel, tag);
         mainPanel.revalidate();
         mainPanel.repaint();
+    }
+
+    //==================================================================================================================
+    //게임 화면 전환 (모드/레벨 선택 -> 인게임 -> 결과/랭킹)
+    //==================================================================================================================
+    public void showGameSetup() {
+        gameSetupPanel.setBestScore(ranking.getBestScore());
+        showScreen(TAG_GAME_SETUP);
+        getRootPane().setDefaultButton(gameSetupPanel.getStartButton());
+    }
+
+    private void startGame(GameMode mode, int level) {
+        // 화면을 먼저 보여줘야 함. start() 안의 requestFocusInWindow()는 보이는 컴포넌트에서만 동작
+        showScreen(TAG_GAME);
+        gameScreen.start(mode, level);
+    }
+
+    private void showGameOver(GameResult result) {
+        gameOverPanel.showResult(result);
+        showScreen(TAG_GAME_OVER);
+        getRootPane().setDefaultButton(gameOverPanel.getPrimaryButton());
     }
 
     public void showSettingsPopup() {

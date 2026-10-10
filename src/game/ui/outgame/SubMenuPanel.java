@@ -24,7 +24,7 @@ public class SubMenuPanel extends JPanel {
         JButton backBtn = UIUtils.createStyledButton("메인 메뉴로");
 
         //버튼이 어떻게 작동할지 결정하는 부분
-        singleplayBtn.addActionListener(e -> mainFrame.showScreen(MainFrame.TAG_SUB_MENU));
+        singleplayBtn.addActionListener(e -> mainFrame.showGameSetup());
         multiplayBtn.addActionListener(e -> mainFrame.showAuthPopup());
         backBtn.addActionListener(e -> mainFrame.showScreen(MainFrame.TAG_MENU));
 
