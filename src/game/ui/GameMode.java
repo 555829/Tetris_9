@@ -7,9 +7,8 @@ import game.tetris.input.InputSourceType;
 public enum GameMode
 {
     SINGLE("1인용", true, InputSourceType.Keyboard1),
-    // InputTranslator가 AIInputSource에 null flow를 넘기는 문제가 해결될 때까지 비활성화
-    VS_AI("AI 대전", false, InputSourceType.Keyboard1, InputSourceType.AI),
-    // InputTranslator가 Keyboard2를 지원할 때까지 비활성화 (현재는 예외 발생)
+    VS_AI("AI 대전", true, InputSourceType.Keyboard1, InputSourceType.AI),
+    // Keyboard2는 원격 보드 표시 전용이며, 2P 로컬 키 매핑은 아직 정의되어 있지 않음
     TWO_PLAYER("2인용", false, InputSourceType.Keyboard1, InputSourceType.Keyboard2);
 
     private final String label;

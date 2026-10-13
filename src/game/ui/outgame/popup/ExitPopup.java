@@ -6,6 +6,9 @@ import game.ui.common.UIUtils;
 import javax.swing.*;
 import java.awt.*;
 
+//======================================================================================================================
+// 게임 종료 팝업
+//======================================================================================================================
 public class ExitPopup extends JPanel {
     private MainFrame mainFrame; //메인프레임 가져오기
     private JPanel popupBox;    //팝업박스 생성
@@ -30,7 +33,7 @@ public class ExitPopup extends JPanel {
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0));
         btnPanel.setOpaque(false);
         JButton yesBtn = UIUtils.createStyledButton("예");
-        JButton noBtn = UIUtils.createStyledButton("아니오");
+        JButton noBtn = UIUtils.createSecondaryButton("아니오");
 
         //버튼 크기조절
         Dimension popupBtnSize = new Dimension(120, 45);

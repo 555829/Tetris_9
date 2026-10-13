@@ -135,6 +135,51 @@ public final class Board
     public int getWidth() { return width; }
 
     public int getHeight() { return height; }
+
+    //멀티플레이 아이템전 쪽 코드
+    public boolean addGarbageLines(int lineCount, int holeColumn)
+    {
+        if (lineCount < 1 || lineCount >= height || holeColumn < 0 || holeColumn >= width)
+            return false;
+
+        for (int y = 0; y < lineCount; y++)
+        {
+            for (TetrominoEnum cell : board[y])
+                if (cell != TetrominoEnum.NoShape) return false;
+        }
+
+        for (int y = 0; y < height - lineCount; y++)
+            System.arraycopy(board[y + lineCount], 0, board[y], 0, width);
+
+        for (int y = height - lineCount; y < height; y++)
+        {
+            Arrays.fill(board[y], TetrominoEnum.ZShape);
+            board[y][holeColumn] = TetrominoEnum.NoShape;
+        }
+        return true;
+    }
+
+    /** 검증한 행 우선 스냅샷으로 보드 상태를 교체합니다. */
+    public boolean replaceFromSnapshot(String payload)
+    {
+        if (payload == null || payload.length() != width * height)
+            return false;
+
+        TetrominoEnum[] values = TetrominoEnum.values();
+        TetrominoEnum[] decoded = new TetrominoEnum[payload.length()];
+        for (int i = 0; i < payload.length(); i++)
+        {
+            int ordinal = payload.charAt(i) - 'A';
+            if (ordinal < 0 || ordinal >= values.length)
+                return false;
+            decoded[i] = values[ordinal];
+        }
+
+        for (int i = 0; i < decoded.length; i++)
+            board[i / width][i % width] = decoded[i];
+        return true;
+    }
+
     public void clear()
     {
         for (TetrominoEnum[] row : board)

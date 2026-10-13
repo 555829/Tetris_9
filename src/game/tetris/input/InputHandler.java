@@ -28,6 +28,7 @@ public class InputHandler {
     // true : 입력을 받고 게임 상태가 변경되었으니 이번 프레임 tick 취소
     public boolean tickSystem()
     {
+        if (!gameFlow.areSystemControlsEnabled()) return false;
         if(input.getKeyDown(InputEnum.Menu))
         {
             gameFlow.openMenu();

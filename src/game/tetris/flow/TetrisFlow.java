@@ -28,6 +28,7 @@ public final class TetrisFlow
     private boolean paused;
     private boolean menuOpen;
     private boolean gameOver;
+    private boolean systemControlsEnabled = true;
 
     private final int startLevel;
 
@@ -70,12 +71,13 @@ public final class TetrisFlow
     // 현재는 메뉴 키로 열기/닫기를 함께 처리
     public void openMenu()
     {
+        if (!systemControlsEnabled) return;
         menuOpen = !menuOpen;
     }
 
     public void togglePause()
     {
-        if (started && !gameOver)
+        if (systemControlsEnabled && started && !gameOver)
             paused = !paused;
     }
 
@@ -90,6 +92,16 @@ public final class TetrisFlow
     public boolean isMenuOpen() { return menuOpen; }
 
     public boolean isGameOver() { return gameOver; }
+
+    public boolean areSystemControlsEnabled() { return systemControlsEnabled; }
+
+    public void setSystemControlsEnabled(boolean enabled) { systemControlsEnabled = enabled; }
+
+    public void markGameOver()
+    {
+        gameOver = true;
+        activePiece.clear();
+    }
 
 
     // 좌우 이동 요청. direction은 -1 또는 1
@@ -290,6 +302,29 @@ public final class TetrisFlow
     public int getLines() { return lines; }
 
     public int getLevel() { return level; }
+
+    public void applyGarbageLines(int lineCount, int holeColumn)
+    {
+        if (!isPlaying()) return;
+        if (!board.addGarbageLines(lineCount, holeColumn))
+        {
+            gameOver = true;
+            activePiece.clear();
+            return;
+        }
+
+        while (activePiece.hasPiece()
+                && !board.canPlace(activePiece.getShape(), activePiece.getX(), activePiece.getY()))
+        {
+            if (!activePiece.tryMove(0, -1))
+            {
+                gameOver = true;
+                activePiece.clear();
+                return;
+            }
+        }
+        groundedFrames = 0;
+    }
 
     public TetrominoEnum getHoldPiece()
     {

@@ -62,7 +62,17 @@ public class GamePanel extends JPanel
     protected void paintComponent(Graphics g0)
     {
         super.paintComponent(g0);
-        Graphics2D g = (Graphics2D) g0;
+        Graphics2D g = (Graphics2D) g0.create();
+        double scale = Math.min(getWidth() / (double) sizeFor(game.board.getWidth(), game.board.getHeight()).width,
+                getHeight() / (double) sizeFor(game.board.getWidth(), game.board.getHeight()).height);
+        if (scale <= 0 || Double.isInfinite(scale) || Double.isNaN(scale)) {
+            g.dispose();
+            return;
+        }
+        int baseWidth = sizeFor(game.board.getWidth(), game.board.getHeight()).width;
+        int baseHeight = sizeFor(game.board.getWidth(), game.board.getHeight()).height;
+        g.translate((getWidth() - baseWidth * scale) / 2.0, (getHeight() - baseHeight * scale) / 2.0);
+        g.scale(scale, scale);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         int boardX = SIDE_WIDTH;
@@ -73,6 +83,7 @@ public class GamePanel extends JPanel
         drawStats(g, MARGIN, boardY + 140);
         drawNext(g, boardX + game.board.getWidth() * CELL + MARGIN, boardY);
         drawOverlay(g, boardX, boardY);
+        g.dispose();
     }
 
     private void drawBoard(Graphics2D g, int originX, int originY)

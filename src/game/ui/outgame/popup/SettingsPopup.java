@@ -5,7 +5,11 @@ import game.ui.MainFrame;
 import game.ui.common.UIUtils;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.geom.Path2D;
 
+//======================================================================================================================
+// 설정 팝업을 띄워줌
+//======================================================================================================================
 public class SettingsPopup extends JPanel {
     private MainFrame mainFrame;
     private SettingsManager settings;
@@ -83,9 +87,11 @@ public class SettingsPopup extends JPanel {
         controlPanel.setOpaque(false);
         controlPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JButton muteBtn = new JButton(defaultValue == 0 ? "🔇" : "🔊"); //이모지가 안나오는 버그 ,폰트문제인지 확인할필요있음
-        muteBtn.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 16));
+        JButton muteBtn = UIUtils.createSecondaryButton("");
+        muteBtn.setIcon(new SpeakerIcon(defaultValue == 0));
+        muteBtn.setToolTipText(defaultValue == 0 ? "음소거 해제" : "음소거");
         muteBtn.setPreferredSize(new Dimension(50, 32));
+        muteBtn.setMaximumSize(new Dimension(50, 32));
 
         JSlider slider = new JSlider(0, 100, defaultValue);
         slider.setPreferredSize(new Dimension(280, 32));
@@ -94,12 +100,25 @@ public class SettingsPopup extends JPanel {
         JTextField percentField = new JTextField(String.valueOf(defaultValue), 4);
         percentField.setFont(UIUtils.getFont(Font.BOLD, 13f));
         percentField.setHorizontalAlignment(JTextField.CENTER);
+        percentField.setEditable(false);
+        final int[] previousVolume = {defaultValue > 0 ? defaultValue : 50};
+
+        muteBtn.addActionListener(e -> {
+            if (slider.getValue() == 0) {
+                slider.setValue(previousVolume[0]);
+            } else {
+                previousVolume[0] = slider.getValue();
+                slider.setValue(0);
+            }
+        });
 
         slider.addChangeListener(e -> {
             int val = slider.getValue();
-            muteBtn.setText(val == 0 ? "🔇" : "🔊");
+            muteBtn.setIcon(new SpeakerIcon(val == 0));
+            muteBtn.setToolTipText(val == 0 ? "음소거 해제" : "음소거");
             percentField.setText(String.valueOf(val));
             onVolumeChange.accept(val);
+            if (val > 0) previousVolume[0] = val;
         });
 
         controlPanel.add(muteBtn);
@@ -112,30 +131,90 @@ public class SettingsPopup extends JPanel {
         return rowPanel;
     }
 
+    //스피커 아이콘이 안나와서 ai로 처리했더니 그냥 그려버린 코드...
+    //이미지 찾기 귀찮아서 그냥 사용함
+    private static final class SpeakerIcon implements Icon {
+        private final boolean muted;
+
+        private SpeakerIcon(boolean muted) { this.muted = muted; }
+        @Override public int getIconWidth() { return 22; }
+        @Override public int getIconHeight() { return 22; }
+
+        @Override
+        public void paintIcon(Component component, Graphics graphics, int x, int y) {
+            Graphics2D g2 = (Graphics2D) graphics.create();
+            try {
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(muted ? UIUtils.COLOR_MUTED : UIUtils.COLOR_ACCENT);
+                int centerY = y + getIconHeight() / 2;
+                Polygon speaker = new Polygon(
+                        new int[]{x + 2, x + 7, x + 13, x + 13, x + 7, x + 2},
+                        new int[]{centerY - 4, centerY - 4, centerY - 9, centerY + 9, centerY + 4, centerY + 4}, 6);
+                g2.fill(speaker);
+                if (muted) {
+                    g2.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                    g2.drawLine(x + 16, y + 6, x + 21, y + 16);
+                    g2.drawLine(x + 21, y + 6, x + 16, y + 16);
+                } else {
+                    Path2D wave = new Path2D.Float();
+                    wave.moveTo(x + 16, y + 6);
+                    wave.quadTo(x + 21, centerY, x + 16, y + 16);
+                    g2.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                    g2.draw(wave);
+                }
+            } finally {
+                g2.dispose();
+            }
+        }
+    }
+
     //==================================================================================================================
     //키 설정 탭
     //==================================================================================================================
+
+    // 키 설정 구조를 다루기 위한 내부 클래스
+    private static class KeyBindingItem {
+        String label;
+        String currentKey;
+        java.util.function.Consumer<String> keySetter;
+
+        public KeyBindingItem(String label, String currentKey, java.util.function.Consumer<String> keySetter) {
+            this.label = label;
+            this.currentKey = currentKey;
+            this.keySetter = keySetter;
+        }
+    }
+
     private JPanel createKeyConfigTabPanel() {
         JPanel panel = new JPanel(new GridLayout(1, 2, 20, 0));
         panel.setBackground(new Color(35, 40, 50));
         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
-        panel.add(createPlayerKeyGroup("1P 조작키", new String[][]{
-                {"좌 이동", settings.p1Left}, {"우 이동", settings.p1Right},
-                {"소프트드롭", settings.p1Soft}, {"하드드롭", settings.p1Hard}, {"회전", settings.p1Rotation}
+        // 1P 키 설정
+        panel.add(createPlayerKeyGroup("1P 조작키", new KeyBindingItem[]{
+                new KeyBindingItem("좌 이동", settings.p1Left, val -> settings.p1Left = val),
+                new KeyBindingItem("우 이동", settings.p1Right, val -> settings.p1Right = val),
+                new KeyBindingItem("소프트드롭", settings.p1Soft, val -> settings.p1Soft = val),
+                new KeyBindingItem("하드드롭", settings.p1Hard, val -> settings.p1Hard = val),
+                new KeyBindingItem("회전", settings.p1Rotation, val -> settings.p1Rotation = val)
         }));
-        panel.add(createPlayerKeyGroup("2P 조작키", new String[][]{
-                {"좌 이동", settings.p2Left}, {"우 이동", settings.p2Right},
-                {"소프트드롭", settings.p2Soft}, {"하드드롭", settings.p2Hard}, {"회전", settings.p2Rotation}
+
+        // 2P 키 설정
+        panel.add(createPlayerKeyGroup("2P 조작키", new KeyBindingItem[]{
+                new KeyBindingItem("좌 이동", settings.p2Left, val -> settings.p2Left = val),
+                new KeyBindingItem("우 이동", settings.p2Right, val -> settings.p2Right = val),
+                new KeyBindingItem("소프트드롭", settings.p2Soft, val -> settings.p2Soft = val),
+                new KeyBindingItem("하드드롭", settings.p2Hard, val -> settings.p2Hard = val),
+                new KeyBindingItem("회전", settings.p2Rotation, val -> settings.p2Rotation = val)
         }));
 
         return panel;
     }
 
     //==================================================================================================================
-    //키 설정 탭 부품 ui 부분
+    //키 설정 탭 부품 (ui쪽)
     //==================================================================================================================
-    private JPanel createPlayerKeyGroup(String title, String[][] defaultKeys) {
+    private JPanel createPlayerKeyGroup(String title, KeyBindingItem[] items) {
         JPanel group = new JPanel();
         group.setLayout(new BoxLayout(group, BoxLayout.Y_AXIS));
         group.setOpaque(false);
@@ -145,17 +224,66 @@ public class SettingsPopup extends JPanel {
         group.add(titleLabel);
         group.add(Box.createVerticalStrut(10));
 
-        for (String[] keyPair : defaultKeys) {
+        for (KeyBindingItem item : items) {
             JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 2));
             row.setOpaque(false);
 
-            JLabel actionLabel = UIUtils.createLabel(keyPair[0], 13f, Color.WHITE);
+            JLabel actionLabel = UIUtils.createLabel(item.label, 13f, Color.WHITE);
             actionLabel.setPreferredSize(new Dimension(80, 25));
             actionLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
-            JButton keyBtn = new JButton(keyPair[1]);
-            keyBtn.setFont(UIUtils.getFont(Font.BOLD, 12f));
+            //버튼 역할 설정
+            JButton keyBtn = UIUtils.createSecondaryButton(item.currentKey);
+            keyBtn.setFont(UIUtils.getBodyFont(Font.BOLD, 12f));
             keyBtn.setPreferredSize(new Dimension(100, 25));
+            keyBtn.setMaximumSize(new Dimension(100, 32));
+            keyBtn.setFocusable(true);
+
+            //버튼 클릭 시 키 입력 대기
+            keyBtn.addActionListener(e -> {
+                keyBtn.setText("키 입력...");
+                keyBtn.setBackground(new Color(255, 200, 80));
+                keyBtn.setForeground(Color.BLACK);
+
+                java.awt.event.KeyAdapter keyAdapter = new java.awt.event.KeyAdapter() {
+                    @Override
+                    public void keyPressed(java.awt.event.KeyEvent ke) {
+                        int code = ke.getKeyCode();
+
+                        // ESC 누르면 취소
+                        if (code == java.awt.event.KeyEvent.VK_ESCAPE) {
+                            keyBtn.setText(item.currentKey);
+                        } else {
+                            String keyName = convertKeyCodeToString(code);
+                            boolean alreadyUsed = false;
+                            for (KeyBindingItem other : items) {
+                                if (other != item && keyName.equalsIgnoreCase(other.currentKey)) {
+                                    alreadyUsed = true;
+                                    break;
+                                }
+                            }
+                            if (alreadyUsed) {
+                                JOptionPane.showMessageDialog(SettingsPopup.this,
+                                        "같은 플레이어의 다른 동작에서 사용 중인 키입니다.",
+                                        "키 설정", JOptionPane.WARNING_MESSAGE);
+                                keyBtn.setText(item.currentKey);
+                            } else {
+                                item.currentKey = keyName;
+                                item.keySetter.accept(keyName); // settings 객체 변수 업데이트
+                                keyBtn.setText(keyName);
+                            }
+                        }
+
+                        // 스타일 원복 및 리스너 제거
+                        keyBtn.setBackground(UIUtils.COLOR_SURFACE_RAISED);
+                        keyBtn.setForeground(UIUtils.COLOR_TEXT);
+                        keyBtn.removeKeyListener(this);
+                    }
+                };
+
+                keyBtn.addKeyListener(keyAdapter);
+                keyBtn.requestFocusInWindow();
+            });
 
             row.add(actionLabel);
             row.add(keyBtn);
@@ -164,6 +292,19 @@ public class SettingsPopup extends JPanel {
         return group;
     }
 
+    // KeyCode를 문자열("LEFT", "SPACE", "A" 등)로 정규화(Normalization)하는
+    // Helper 메서드는 입력 장치(키보드)나 환경마다 다르게 들어오는 키 입력 값을 하나의 일관된 문자열 형식으로 통일해 주는 보조 함수
+    //-google 검색
+    private String convertKeyCodeToString(int keyCode) {
+        return switch (keyCode) {
+            case java.awt.event.KeyEvent.VK_LEFT -> "LEFT";
+            case java.awt.event.KeyEvent.VK_RIGHT -> "RIGHT";
+            case java.awt.event.KeyEvent.VK_UP -> "UP";
+            case java.awt.event.KeyEvent.VK_DOWN -> "DOWN";
+            case java.awt.event.KeyEvent.VK_SPACE -> "SPACE";
+            default -> java.awt.event.KeyEvent.getKeyText(keyCode).toUpperCase();
+        };
+    }
     //==================================================================================================================
     //디스플레이 탭 띄우는 부분
     //==================================================================================================================

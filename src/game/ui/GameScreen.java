@@ -1,5 +1,6 @@
 package game.ui;
 
+import game.SettingsManager;
 import game.tetris.Tetris;
 import game.tetris.input.InputSourceType;
 import game.tetris.tetrominoQueue.PieceGenerator_7Bag;
@@ -28,6 +29,7 @@ public class GameScreen extends JPanel
     private static final Color TEXT = new Color(230, 230, 235);
 
     private final Consumer<GameResult> onFinished;
+    private final SettingsManager settings;
     private final Timer timer = new Timer(FRAME_MS, e -> tick());
     private final List<Tetris> games = new ArrayList<>();
 
@@ -38,7 +40,13 @@ public class GameScreen extends JPanel
 
     public GameScreen(Consumer<GameResult> onFinished)
     {
+        this(onFinished, null);
+    }
+
+    public GameScreen(Consumer<GameResult> onFinished, SettingsManager settings)
+    {
         this.onFinished = onFinished;
+        this.settings = settings;
         setBackground(BACKGROUND);
         setLayout(new GridBagLayout());
         // 게임 중 포커스를 가져와서, 메뉴 버튼에 남은 포커스 때문에 Space/Enter가 버튼을 누르지 않게 함
@@ -60,7 +68,7 @@ public class GameScreen extends JPanel
 
         for (int i = 0; i < players.length; i++)
         {
-            Tetris game = new Tetris(players[i], new TetrominoQueue(new PieceGenerator_7Bag()), level);
+            Tetris game = new Tetris(players[i], new TetrominoQueue(new PieceGenerator_7Bag()), level, settings);
             games.add(game);
 
             gbc.gridx = i;
@@ -77,8 +85,8 @@ public class GameScreen extends JPanel
     public void stop()
     {
         timer.stop();
-        // TODO: Tetris에 close()가 생기면 여기서 호출하기
-        // 그 전까지는 끝난 게임마다 전역 키 리스너가 남아 있음 (KeyboardInputSource가 해제하지 않음)
+        for (Tetris game : games)
+            game.close();
         games.clear();
         removeAll();
     }

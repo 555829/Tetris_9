@@ -5,33 +5,33 @@ import game.ui.MainFrame;
 import game.ui.common.UIUtils;
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 
+//======================================================================================================================
+// 로그인이랑 회원가입 팝업을 담당하는 코드
+//======================================================================================================================
 public class AuthPopup extends JPanel {
     private MainFrame mainFrame;
     private JPanel popupBox;
     private CardLayout cardLayout = new CardLayout();
     private JPanel cardsPanel = new JPanel(cardLayout);
-    public static final String CARD_LOGIN = "LOGIN";
-    public static final String CARD_REGISTER = "REGISTER";
     private JTextField loginIdField;
     private JPasswordField loginPwField;
     private JTextField regIdField;
     private JPasswordField regPwField;
     private JPasswordField regPwConfirmField;
-    private JLabel regStatusLabel; // 아이디/비밀번호 검증 결과 안내 라벨
+    private JLabel regStatusLabel;
     private JLabel loginStatusLabel;
+    public static final String CARD_LOGIN = "LOGIN";
+    public static final String CARD_REGISTER = "REGISTER";
 
     //==================================================================================================================
-    //로그인/회원가입 창 띄워주는 코드
+    // 로그인/회원가입 창 띄워주는 코드
     //==================================================================================================================
     public AuthPopup(MainFrame mainFrame) {
-        //필요한 설정 모아둠과 동시에 gridbagcontains가 popupbox를 화면중앙으로 잡아줌
         this.mainFrame = mainFrame;
         setLayout(new GridBagLayout());
         setOpaque(false);
-        popupBox = UIUtils.createBasePopupBox(500, 380); //팝업 박스 사이즈 설정
+        popupBox = UIUtils.createBasePopupBox(500, 380);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -44,25 +44,65 @@ public class AuthPopup extends JPanel {
         cardsPanel.add(createLoginCard(), CARD_LOGIN);
         cardsPanel.add(createRegisterCard(), CARD_REGISTER);
         popupBox.add(cardsPanel, BorderLayout.CENTER);
+
+        NetworkManager.getInstance().addPacketListener(this::onPacketReceived);
     }
 
     //==================================================================================================================
-    //로그인 창 띄워주는 코드 (스케치 UI 세로 배치 적용)
+    // 패킷처리
+    //==================================================================================================================
+    private void onPacketReceived(String packet) {
+        String[] tokens = packet.split("\\|", -1);
+        if (tokens.length < 2) return;
+        String cmd = tokens[0];
+
+        // 1. 로그인 응답 처리
+        if ("RES_LOGIN".equals(cmd)) {
+            String result = tokens[1];
+
+            if ("SUCCESS".equals(result)) {
+                showLoginStatus(" ", Color.WHITE);
+
+                // 팝업 닫기 및 MultiLobbyPanel로 이동!
+                mainFrame.hideAuthPopup();
+                mainFrame.showScreen(MainFrame.TAG_MULTI_LOBBY);
+            } else {
+                String failReason = tokens.length > 2 ? tokens[2] : "로그인 정보가 올바르지 않습니다.";
+                showLoginStatus(failReason, new Color(255, 120, 120));
+            }
+        }
+        // 2. 회원가입 응답 처리
+        else if ("RES_REGISTER".equals(cmd)) {
+            String result = tokens[1];
+
+            if ("SUCCESS".equals(result)) {
+                showRegStatus("회원가입에 성공했습니다!", Color.CYAN);
+                resetRegisterForm();
+                cardLayout.show(cardsPanel, CARD_LOGIN); // 로그인 화면으로 이동
+                showLoginStatus("회원가입 성공! 로그인해 주세요.", Color.CYAN);
+            } else {
+                String failReason = tokens.length > 2 ? tokens[2] : "회원가입에 실패했습니다.";
+                showRegStatus(failReason, new Color(255, 120, 120));
+            }
+        }
+    }
+
+    //==================================================================================================================
+    // 로그인 UI
     //==================================================================================================================
     private JPanel createLoginCard() {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setOpaque(false);
 
-        //제목
         JLabel titleLabel = UIUtils.createLabel("로그인", 22f, Color.WHITE);
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        //입력폼
         JPanel formPanel = new JPanel(new GridLayout(2, 2, 10, 10));
         formPanel.setOpaque(false);
         formPanel.setMaximumSize(new Dimension(300, 70));
         formPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
         loginIdField = new JTextField();
         loginPwField = new JPasswordField();
         formPanel.add(UIUtils.createLabel("아이디", 14f, Color.WHITE));
@@ -70,35 +110,28 @@ public class AuthPopup extends JPanel {
         formPanel.add(UIUtils.createLabel("비밀번호", 14f, Color.WHITE));
         formPanel.add(loginPwField);
 
-        //오류메세지 라벨
         loginStatusLabel = UIUtils.createLabel(" ", 12f, new Color(255, 120, 120));
         loginStatusLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        loginStatusLabel.setMaximumSize(new Dimension(300, 20)); // 폼/버튼 너비(300px)와 동일하게 통일
-        //오류메세지 위치고정
         Dimension statusSize = new Dimension(300, 20);
         loginStatusLabel.setPreferredSize(statusSize);
         loginStatusLabel.setMinimumSize(statusSize);
         loginStatusLabel.setMaximumSize(statusSize);
 
-        //버튼 생성
         JButton loginBtn = UIUtils.createStyledButton("로그인");
-        JButton regSwitchBtn = UIUtils.createStyledButton("회원가입");
-        JButton closeBtn = UIUtils.createStyledButton("닫기");
+        JButton regSwitchBtn = UIUtils.createSecondaryButton("회원가입");
+        JButton closeBtn = UIUtils.createSecondaryButton("닫기");
 
-        //버튼 역할부여
         loginBtn.addActionListener(e -> handleLogin());
-        regSwitchBtn.addActionListener(e -> {resetRegisterForm();cardLayout.show(cardsPanel, CARD_REGISTER);});
+        regSwitchBtn.addActionListener(e -> { resetRegisterForm(); cardLayout.show(cardsPanel, CARD_REGISTER); });
         closeBtn.addActionListener(e -> mainFrame.hideAuthPopup());
 
-        //버튼 위치고정
         Dimension btnSize = new Dimension(300, 42);
-        for (JButton btn : new JButton[]{loginBtn, regSwitchBtn,closeBtn}) {
+        for (JButton btn : new JButton[]{loginBtn, regSwitchBtn, closeBtn}) {
             btn.setPreferredSize(btnSize);
             btn.setMaximumSize(btnSize);
             btn.setAlignmentX(Component.CENTER_ALIGNMENT);
         }
 
-        //배열하기
         card.add(Box.createVerticalStrut(15));
         card.add(titleLabel);
         card.add(Box.createVerticalStrut(20));
@@ -115,48 +148,54 @@ public class AuthPopup extends JPanel {
     }
 
     //==================================================================================================================
-    //로그인 기능을 하는 코드
+    // 로그인 처리
     //==================================================================================================================
     private void handleLogin() {
         String id = loginIdField.getText().trim();
-        String pw = new String(loginPwField.getPassword()).trim();
+        String pw = new String(loginPwField.getPassword());
         NetworkManager net = NetworkManager.getInstance();
         Color errorColor = new Color(255, 120, 120);
 
-        // 로그인 할때 나오는 오류
         if (id.isEmpty()) {
             showLoginStatus("아이디를 입력해 주세요.", errorColor);
             return;
-        }else if (pw.isEmpty()) {
+        } else if (pw.isEmpty()) {
             showLoginStatus("비밀번호를 입력해 주세요.", errorColor);
             return;
         }
-
-        // 서버 연결 후 로그인
-        if (!net.isConnected) {
-            boolean connected = net.connect(NetworkManager.SERVER_HOST, NetworkManager.SERVER_PORT);
-            if (!connected) {
-                showLoginStatus("서버에 연결할 수 없습니다.", errorColor);
-                return;
-            }
+        if (!isValidProtocolField(id, 64) || !isValidProtocolField(pw, 128)) {
+            showLoginStatus("아이디와 비밀번호는 구분자 없이 지정 길이 이내로 입력해 주세요.", errorColor);
+            return;
         }
-        showLoginStatus(" ", Color.WHITE); // 성공 시 메시지 초기화
-        net.requestLogin(id, pw);
+
+        showLoginStatus("서버에 연결하는 중", Color.CYAN);
+
+        // 이걸 하면 ui 처리하는 부분과 로그인하는 쪽의 스레드를 나눠서 ui가 멈추지 않음
+        new Thread(() -> {
+            if (!net.isConnected) {
+                boolean connected = net.connect(NetworkManager.SERVER_HOST, NetworkManager.SERVER_PORT);
+                if (!connected) {
+                    SwingUtilities.invokeLater(() -> showLoginStatus("서버에 연결할 수 없습니다.", errorColor));
+                    return;
+                }
+            }
+
+            SwingUtilities.invokeLater(() -> showLoginStatus("로그인 요청 중...", Color.WHITE));
+            net.requestLogin(id, pw);
+        }).start();
     }
 
     //==================================================================================================================
-    //회원가입 창 띄워주는 코드
+    // 회원가입 UI
     //==================================================================================================================
     private JPanel createRegisterCard() {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setOpaque(false);
 
-        //회원가입 창 제목
         JLabel titleLabel = UIUtils.createLabel("회원가입", 22f, Color.WHITE);
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        //회원가입 입력폼
         JPanel form = new JPanel(new GridLayout(3, 2, 8, 12));
         form.setOpaque(false);
         form.setMaximumSize(new Dimension(340, 110));
@@ -166,18 +205,6 @@ public class AuthPopup extends JPanel {
         regPwField = new JPasswordField();
         regPwConfirmField = new JPasswordField();
 
-        // 포커스 탈출 시 중복 체크 안내
-        regIdField.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent e) {
-                String id = regIdField.getText().trim();
-                if (!id.isEmpty()) {
-                    showRegStatus("", Color.CYAN);
-                }
-            }
-        });
-
-        //회원가입시 사용할 폼 추가
         form.add(UIUtils.createLabel("회원가입할 아이디:", 13f, Color.WHITE));
         form.add(regIdField);
         form.add(UIUtils.createLabel("사용할 비밀번호:", 13f, Color.WHITE));
@@ -185,33 +212,27 @@ public class AuthPopup extends JPanel {
         form.add(UIUtils.createLabel("비밀번호 확인:", 13f, Color.WHITE));
         form.add(regPwConfirmField);
 
-        // 상태 표시 라벨
         regStatusLabel = UIUtils.createLabel(" ", 12f, new Color(255, 120, 120));
-        regStatusLabel.setHorizontalAlignment(SwingConstants.CENTER); // 글자 자체 중앙 정렬
-        regStatusLabel.setAlignmentX(Component.CENTER_ALIGNMENT);     // 상자 중앙 정렬
+        regStatusLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        regStatusLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        //상태 표시 라벨 위치고정
         Dimension statusSize = new Dimension(340, 20);
         regStatusLabel.setPreferredSize(statusSize);
         regStatusLabel.setMinimumSize(statusSize);
         regStatusLabel.setMaximumSize(statusSize);
 
-        //버튼 생성
         JButton submitBtn = UIUtils.createStyledButton("만들기");
-        JButton backBtn = UIUtils.createStyledButton("뒤로가기");
+        JButton backBtn = UIUtils.createSecondaryButton("뒤로가기");
 
-        //버튼 위치고정
         Dimension btnSize = new Dimension(120, 40);
-        for (JButton btn : new JButton[]{submitBtn, backBtn}) {
-            btn.setPreferredSize(btnSize);
-            btn.setMaximumSize(btnSize);
-        }
+        submitBtn.setPreferredSize(btnSize);
+        submitBtn.setMaximumSize(btnSize);
+        backBtn.setPreferredSize(btnSize);
+        backBtn.setMaximumSize(btnSize);
 
-        //버튼 역할부여
         submitBtn.addActionListener(e -> handleRegister());
         backBtn.addActionListener(e -> cardLayout.show(cardsPanel, CARD_LOGIN));
 
-        //버튼 레이아웃
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0));
         btnPanel.setOpaque(false);
         btnPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -219,7 +240,6 @@ public class AuthPopup extends JPanel {
         btnPanel.add(submitBtn);
         btnPanel.add(backBtn);
 
-        //버튼 위치수정
         card.add(Box.createVerticalStrut(10));
         card.add(titleLabel);
         card.add(Box.createVerticalStrut(20));
@@ -232,16 +252,15 @@ public class AuthPopup extends JPanel {
     }
 
     //==================================================================================================================
-    //회원가입 기능을 하는 코드
+    // 회원가입 처리 (왜 되는건지 모르겠음...)
     //==================================================================================================================
     private void handleRegister() {
         String id = regIdField.getText().trim();
-        String pw = new String(regPwField.getPassword()).trim();
-        String pwConfirm = new String(regPwConfirmField.getPassword()).trim();
+        String pw = new String(regPwField.getPassword());
+        String pwConfirm = new String(regPwConfirmField.getPassword());
         NetworkManager net = NetworkManager.getInstance();
         Color errorColor = new Color(255, 120, 120);
 
-        //회원가입 시 발생할 수 있는 오류 체크
         if (id.isEmpty()) {
             showRegStatus("아이디를 입력해 주세요.", errorColor);
             return;
@@ -250,38 +269,36 @@ public class AuthPopup extends JPanel {
             showRegStatus("비밀번호를 입력해 주세요.", errorColor);
             return;
         }
+        if (!isValidProtocolField(id, 30) || id.indexOf(',') >= 0 || !isValidProtocolField(pw, 128)) {
+            showRegStatus("아이디는 30자 이내, 비밀번호는 128자 이내로 입력하고 구분자나 쉼표는 사용할 수 없습니다.", errorColor);
+            return;
+        }
         if (!pw.equals(pwConfirm)) {
             showRegStatus("비밀번호가 일치하지 않습니다.", errorColor);
             return;
         }
 
-        // 서버 접속 안내 메세지
-        showLoginStatus("서버에 연결하는 중", Color.CYAN);
+        showRegStatus("서버에 연결하는 중", Color.CYAN);
 
-        // 백그라운드 스레드에서 네트워크 작업 수행 (UI 프리징 방지) <- 이거 해도 여전히 ui 프리징 걸림
         new Thread(() -> {
-
             if (!net.isConnected) {
                 boolean connected = net.connect(NetworkManager.SERVER_HOST, NetworkManager.SERVER_PORT);
-
                 if (!connected) {
-                    javax.swing.SwingUtilities.invokeLater(() ->
-                            showLoginStatus("서버에 연결할 수 없습니다.", errorColor)
-                    );
+                    SwingUtilities.invokeLater(() -> showRegStatus("서버에 연결할 수 없습니다.", errorColor));
                     return;
                 }
             }
 
-            // 연결 성공 또는 이미 연결된 상태면 로그인 요청 전송
-            javax.swing.SwingUtilities.invokeLater(() -> showLoginStatus("로그인 요청 중...", Color.WHITE));
-            net.requestRegister(id, pw, id); //일단 아이디가 닉네임입니다
+            SwingUtilities.invokeLater(() -> showRegStatus("회원가입 요청 중", Color.WHITE));
+            net.requestRegister(id, pw, id);
+            //닉네임 따로 받는거 깜빡했는데 수정하기 귀찮아서 그냥 id가 닉네임... 로비안에 들어가서 프로필 버튼 누르면
+            //수정할수 있습니다
         }).start();
     }
 
     //==================================================================================================================
-    //사용하는 메서드
+    // 필요한 부품들
     //==================================================================================================================
-
     private void showLoginStatus(String message, Color color) {
         loginStatusLabel.setText(message);
         loginStatusLabel.setForeground(color);
@@ -299,7 +316,16 @@ public class AuthPopup extends JPanel {
         regStatusLabel.setText(" ");
     }
 
-    @Override //뒤에 배경 반투명...
+    private static boolean isValidProtocolField(String value, int maxLength) {
+        if (value == null || value.isEmpty() || value.length() > maxLength) return false;
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (ch == '|' || Character.isISOControl(ch)) return false;
+        }
+        return true;
+    }
+
+    @Override //팝업 이후 반투명 해주는코드
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         g.setColor(new Color(0, 0, 0, 170));

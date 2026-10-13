@@ -1,31 +1,37 @@
 package game.tetris.input;
 
+import game.SettingsManager;
 import game.tetris.flow.TetrisFlow;
 
 public class InputTranslator {
     private final IInputSource inputSource;
-    private TetrisFlow flow;
+    private final TetrisFlow flow;
+    private final SettingsManager settings;
     private InputData curInputData = new InputData();
     private InputData preInputData = new InputData();
 
     public InputTranslator(InputSourceType type, TetrisFlow flow)
     {
-        inputSource = createInputSource(type);
-        this.flow = flow;
+        this(type, flow, null);
     }
 
-    //====================================================================================================================
-    //컴파일 에러 나는 코드 수정
-    // case inputSourceType.Keyboard1 -> keyboard1
-    // case inputSourceType.AI -> AI
-    //=================================================================================================================
+    public InputTranslator(InputSourceType type, TetrisFlow flow, SettingsManager settings)
+    {
+        this.flow = flow;
+        this.settings = settings;
+        inputSource = createInputSource(type);
+    }
+
+    // 입력 종류마다 실제 키보드, AI 또는 원격 보드 입력 공급자를 연결합니다.
     private IInputSource createInputSource(InputSourceType type) {
         switch (type)
         {
             case Keyboard1 :
-                return new KeyboardInputSource(); //TODO : keyboard2 추가
+                return new KeyboardInputSource(settings);
             case AI:
-                return new AIInputSource(flow, 5); // TODO: 설정 파일 읽는 것으로 변경
+                return new AIInputSource(flow, 5);
+            case Keyboard2:
+                return new RemoteInputSource();
             default:
                 throw new IllegalArgumentException("Invalid InputSourceType");
         }
@@ -33,12 +39,7 @@ public class InputTranslator {
 
 
 
-    /*
-    original input :  000111000
-    getKey         :  000111000
-    getKeyDown     :  000100000
-    getKeyUp       :  000000100
-     */
+    // 현재 입력과 이전 입력을 비교해 눌림 유지, 최초 눌림, 해제 상태를 구분합니다.
     public boolean getKey(InputEnum input) {
         return curInputData.get(input);
     }
@@ -57,5 +58,9 @@ public class InputTranslator {
     {
         preInputData = curInputData;
         curInputData = inputSource.getInputData();
+    }
+    public void close()
+    {
+        inputSource.close();
     }
 }
