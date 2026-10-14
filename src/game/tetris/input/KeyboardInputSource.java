@@ -109,6 +109,8 @@ class KeyboardInputSource implements IInputSource
             case KeyEvent.VK_E: return InputEnum.Hold;
             case KeyEvent.VK_P: return InputEnum.Pause;
             case KeyEvent.VK_ESCAPE: return InputEnum.Menu;
+            // 날아가는 블록 잡기
+            case KeyEvent.VK_C: return InputEnum.Catch;
             default: return null;
         }
     }

@@ -248,6 +248,8 @@ public class SettingsPopup extends JPanel {
                 java.awt.event.KeyAdapter keyAdapter = new java.awt.event.KeyAdapter() {
                     @Override
                     public void keyPressed(java.awt.event.KeyEvent ke) {
+
+                        ke.consume();
                         int code = ke.getKeyCode();
 
                         // ESC 누르면 취소

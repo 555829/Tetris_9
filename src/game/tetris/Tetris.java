@@ -69,7 +69,7 @@ public class Tetris {
         if (inputHandler.tickSystem())
             return;
 
-        if (!flow.isPlaying())
+        if (!flow.isRunning())
             return;
 
         timer.tick();

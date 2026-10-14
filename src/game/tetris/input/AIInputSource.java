@@ -31,6 +31,15 @@ class AIInputSource implements IInputSource
     {
         InputData result = new InputData();
 
+        // 블록이 차여서 날아가는 중이면 조작할 블록이 없음 (getCurrentPieceInfo()가 null)
+        // 이전 블록용 이동 목록이 다음 블록에 적용되지 않도록 비워 둠
+        if (flow.getCurrentPieceInfo() == null)
+        {
+            moveQueue.clear();
+            return result;
+        }
+
+
         if (waitFrames > 0)
         {
             waitFrames--;

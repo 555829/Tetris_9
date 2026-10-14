@@ -6,6 +6,7 @@ import game.tetris.board.Board;
 import game.tetris.flow.TetrisFlow;
 import game.tetris.tetromino.TetrominoEnum;
 import game.tetris.tetromino.TetrominoShape;
+import game.tetris.flow.KickedPiece;
 
 import game.ui.common.UIUtils;
 
@@ -27,6 +28,7 @@ public class GamePanel extends JPanel
     private static final Color BACKGROUND = new Color(24, 24, 32);
     private static final Color GRID = new Color(45, 45, 58);
     private static final Color TEXT = new Color(230, 230, 235);
+    private static final Color KICK = new Color(255, 200, 60);
 
     // ordinal() 대신 enum 값으로 색을 찾음. 새 블록 모양을 추가해도 색이 밀리지 않게 하기 위함
     // (원본 Board.drawSquare는 shape.ordinal()로 색 배열을 참조했음)
@@ -82,6 +84,7 @@ public class GamePanel extends JPanel
         drawHold(g, MARGIN, boardY);
         drawStats(g, MARGIN, boardY + 140);
         drawNext(g, boardX + game.board.getWidth() * CELL + MARGIN, boardY);
+        drawKicked(g, boardX, boardY);
         drawOverlay(g, boardX, boardY);
         g.dispose();
     }
@@ -109,6 +112,43 @@ public class GamePanel extends JPanel
                     drawCell(g, originX + x * CELL, originY + y * CELL, CELL, cell);
             }
         }
+    }
+
+    // 차여서 날아가는 블록: 칸에 맞춰 그리지 않고 실제 위치(소수점)에 그려서 부드럽게 움직이게 함
+    private void drawKicked(Graphics2D g, int boardX, int boardY)
+    {
+        KickedPiece kicked = game.flow.getKickedPiece();
+        if (kicked == null)
+            return;
+
+        TetrominoShape shape = kicked.getShape();
+        for (int sy = 0; sy < TetrominoShape.SIZE; sy++)
+        {
+            for (int sx = 0; sx < TetrominoShape.SIZE; sx++)
+            {
+                if (shape.get(sx, sy) == TetrominoEnum.NoShape)
+                    continue;
+
+                int px = boardX + (int) Math.round((kicked.getX() + sx) * CELL);
+                int py = boardY + (int) Math.round((kicked.getY() + sy) * CELL);
+                drawCell(g, px, py, CELL, shape.getType());
+                // 일반 블록과 구분되도록 노란 테두리
+                g.setColor(KICK);
+                g.drawRect(px, py, CELL - 1, CELL - 1);
+            }
+        }
+
+        // 남은 시간 막대 + 안내 문구 (보드 맨 위)
+        int boardWidth = game.board.getWidth() * CELL;
+        g.setColor(new Color(0, 0, 0, 140));
+        g.fillRect(boardX, boardY, boardWidth, 30);
+        g.setColor(KICK);
+        g.fillRect(boardX, boardY, (int) (boardWidth * kicked.getRemainingRatio()), 5);
+
+        String hint = "C 키로 잡기!";
+        g.setFont(UIUtils.getFont(Font.BOLD, 15f));
+        FontMetrics fm = g.getFontMetrics();
+        g.drawString(hint, boardX + (boardWidth - fm.stringWidth(hint)) / 2, boardY + 24);
     }
 
     private void drawHold(Graphics2D g, int x, int y)

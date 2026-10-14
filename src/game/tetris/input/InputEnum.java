@@ -9,4 +9,5 @@ public enum InputEnum {
     Hold,
     Pause,
     Menu,
+    Catch,
 }

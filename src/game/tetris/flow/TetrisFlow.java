@@ -8,6 +8,8 @@ import game.tetris.tetrominoQueue.TetrominoQueue;
 import game.tetris.timer.timerClass;
 import game.tetris.input.AI.PieceInfo;
 
+import java.util.Random;
+
 public final class TetrisFlow
 {
     private static final int LOCK_DELAY = 30;
@@ -15,6 +17,13 @@ public final class TetrisFlow
     private static final int[] LINE_POINTS = {
             0, 100, 300, 500, 800
     };
+
+    // 블록 차기: 새 블록마다 KICK_CHANCE 확률로, 블록이 KICK_MIN_ROW ~ (KICK_MIN_ROW + KICK_ROW_RANGE - 1)줄까지
+    private static final double KICK_CHANCE = 0.15;
+    private static final int KICK_MIN_ROW = 3;
+    private static final int KICK_ROW_RANGE = 5;
+    private static final int KICK_FRAMES = 120;
+    private static final double KICK_SPEED = 0.3;
 
     private final Board board;
     private final ActivePiece activePiece;
@@ -38,6 +47,10 @@ public final class TetrisFlow
 
     private int gravityFrames;
     private int groundedFrames;
+
+    private final Random random = new Random();
+    private KickedPiece kicked;      // null이면 차인 블록 없음
+    private int kickAtRow = -1;      // -1이면 이번 블록은 차이지 않음
 
     public TetrisFlow(
             Board board,
@@ -81,11 +94,20 @@ public final class TetrisFlow
             paused = !paused;
     }
 
+    public boolean isRunning()
+    {
+        return started && !paused && !menuOpen && !gameOver;
+    }
+
     public boolean isPlaying()
     {
-        return started && !paused && !menuOpen &&
-                !gameOver && activePiece.hasPiece();
+        return isRunning() && activePiece.hasPiece();
     }
+
+    public boolean isKicked() { return kicked != null; }
+
+    // 화면에서 그리기 위한 읽기 전용 정보. 없으면 null
+    public KickedPiece getKickedPiece() { return kicked; }
 
     public boolean isPaused() { return paused; }
 
@@ -250,6 +272,52 @@ public final class TetrisFlow
 
         return false;
     }
+    // 날아가는 블록을 잡음. 잡은 자리에서 다시 일반 낙하 시작
+    public boolean catchKicked()
+    {
+        if (kicked == null || !isRunning())
+            return false;
+
+        placeKicked();
+        return true;
+    }
+
+    private boolean tickKicked() {
+        if (!isRunning())
+            return false;
+
+        if (kicked.tick(board.getWidth(), board.getHeight()))
+            return false;
+
+        if (placeKicked()) {
+            activePiece.hardDrop();
+            lockCurrentPiece();
+        }
+        return true;
+    }
+
+    private boolean placeKicked()
+    {
+        TetrominoShape shape = kicked.getShape();
+        int x = (int) Math.round(kicked.getX());
+        int y = (int) Math.round(kicked.getY());
+        kicked = null;
+
+        // 날아가는 동안 쌓인 블록을 통과하므로 겹친 위치일 수 있음 → 겹치지 않을 때까지 위로 올림
+        while (y >= -TetrominoShape.SIZE && !board.canPlace(shape, x, y))
+            y--;
+
+        if (y < -TetrominoShape.SIZE || !activePiece.spawn(shape, x, y))
+        {
+            gameOver = true;
+            return false;
+        }
+
+        gravityFrames = 0;
+        groundedFrames = 0;
+        return true;
+    }
+
 
 
     // 현재 Piece를 Board에 고정하고 다음 Piece 생성
@@ -279,6 +347,10 @@ public final class TetrisFlow
     {
         gravityFrames = 0;
         groundedFrames = 0;
+
+        kickAtRow = random.nextDouble() < KICK_CHANCE
+                ? KICK_MIN_ROW + random.nextInt(KICK_ROW_RANGE)
+                : -1;
 
         TetrominoShape shape = new TetrominoShape(type);
 

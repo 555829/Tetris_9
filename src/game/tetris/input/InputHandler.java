@@ -51,6 +51,16 @@ public class InputHandler {
     // true : 입력을 받고 블록 상태가 변경되었으니 이번 프레임 tick 취소
     public boolean tickGameplay()
     {
+        // 날아가는 블록 잡기. 블록 상태가 바뀌므로 다른 입력 처리를 멈춤
+        if (input.getKeyDown(InputEnum.Catch))
+        {
+            if (gameFlow.catchKicked())
+            {
+                reset();
+                return true;
+            }
+        }
+
         //Hold와 DropDown은 블록을 바꾸므로, true를 반환해서 다른 Tick을 멈춤
         if (input.getKeyDown(InputEnum.Hold))
         {
