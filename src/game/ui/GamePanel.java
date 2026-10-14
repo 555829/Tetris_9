@@ -29,6 +29,7 @@ public class GamePanel extends JPanel
     private static final Color GRID = new Color(45, 45, 58);
     private static final Color TEXT = new Color(230, 230, 235);
     private static final Color KICK = new Color(255, 200, 60);
+    private static final Color MORPH = new Color(120, 220, 255);
 
     // ordinal() 대신 enum 값으로 색을 찾음. 새 블록 모양을 추가해도 색이 밀리지 않게 하기 위함
     // (원본 Board.drawSquare는 shape.ordinal()로 색 배열을 참조했음)
@@ -85,6 +86,7 @@ public class GamePanel extends JPanel
         drawStats(g, MARGIN, boardY + 140);
         drawNext(g, boardX + game.board.getWidth() * CELL + MARGIN, boardY);
         drawKicked(g, boardX, boardY);
+        drawMorphFlash(g, boardX, boardY);
         drawOverlay(g, boardX, boardY);
         g.dispose();
     }
@@ -149,6 +151,31 @@ public class GamePanel extends JPanel
         g.setFont(UIUtils.getFont(Font.BOLD, 15f));
         FontMetrics fm = g.getFontMetrics();
         g.drawString(hint, boardX + (boardWidth - fm.stringWidth(hint)) / 2, boardY + 24);
+    }
+
+    // 모양이 바뀐 직후: 블록 위에 흰색을 덮었다가 점점 사라지게 하고, 보드 위에 안내 문구 표시
+    private void drawMorphFlash(Graphics2D g, int boardX, int boardY)
+    {
+        double ratio = game.flow.getMorphFlashRatio();
+        if (ratio <= 0)
+            return;
+
+        ActivePiece piece = game.activePiece;
+        g.setColor(new Color(255, 255, 255, (int) (200 * ratio)));
+        for (int y = 0; y < piece.getHeight(); y++)
+            for (int x = 0; x < piece.getWidth(); x++)
+                if (piece.getCell(x, y) != TetrominoEnum.NoShape)
+                    g.fillRect(boardX + x * CELL, boardY + y * CELL, CELL, CELL);
+
+        int boardWidth = game.board.getWidth() * CELL;
+        g.setColor(new Color(0, 0, 0, 140));
+        g.fillRect(boardX, boardY, boardWidth, 30);
+
+        String hint = "모양 변경!";
+        g.setColor(MORPH);
+        g.setFont(UIUtils.getFont(Font.BOLD, 15f));
+        FontMetrics fm = g.getFontMetrics();
+        g.drawString(hint, boardX + (boardWidth - fm.stringWidth(hint)) / 2, boardY + 21);
     }
 
     private void drawHold(Graphics2D g, int x, int y)

@@ -18,12 +18,21 @@ public final class TetrisFlow
             0, 100, 300, 500, 800
     };
 
-    // 블록 차기: 새 블록마다 KICK_CHANCE 확률로, 블록이 KICK_MIN_ROW ~ (KICK_MIN_ROW + KICK_ROW_RANGE - 1)줄까지
-    private static final double KICK_CHANCE = 0.15;
+    // 차일 확률은 레벨이 오를수록 커짐: 레벨 1에서 10%, 레벨마다 +5%, 최대 40%
+    private static final double KICK_CHANCE_BASE = 0.10;
+    private static final double KICK_CHANCE_PER_LEVEL = 0.05;
+    private static final double KICK_CHANCE_MAX = 0.40;
     private static final int KICK_MIN_ROW = 3;
     private static final int KICK_ROW_RANGE = 5;
     private static final int KICK_FRAMES = 120;
     private static final double KICK_SPEED = 0.3;
+
+    // 모양 바꾸기: 차기와 같은 확률표(레벨 1에서 10%, 레벨마다 +5%, 최대 40%)로 따로 뽑음
+    // 한 블록에 차기와 모양 바꾸기가 같이 일어나지는 않음
+    private static final int MORPH_MIN_ROW = 3;
+    private static final int MORPH_ROW_RANGE = 5;
+    private static final int MORPH_FLASH_FRAMES = 30;
+
 
     private final Board board;
     private final ActivePiece activePiece;
@@ -51,6 +60,10 @@ public final class TetrisFlow
     private final Random random = new Random();
     private KickedPiece kicked;      // null이면 차인 블록 없음
     private int kickAtRow = -1;      // -1이면 이번 블록은 차이지 않음
+
+    private int morphAtRow = -1;     // -1이면 이번 블록은 모양이 바뀌지 않음
+    private int morphFlashFrames;    // 0보다 크면 방금 모양이 바뀐 것 (화면 번쩍임용)
+    private int morphCount;          // 지금까지 모양이 바뀐 횟수 (AI가 이동 계획을 다시 세우는 데 사용)
 
     public TetrisFlow(
             Board board,
@@ -108,6 +121,11 @@ public final class TetrisFlow
 
     // 화면에서 그리기 위한 읽기 전용 정보. 없으면 null
     public KickedPiece getKickedPiece() { return kicked; }
+
+    // 모양이 바뀐 직후 번쩍임 세기. 1이면 막 바뀜, 0이면 효과 없음
+    public double getMorphFlashRatio() { return morphFlashFrames / (double) MORPH_FLASH_FRAMES; }
+
+    public int getMorphCount() { return morphCount; }
 
     public boolean isPaused() { return paused; }
 
@@ -252,6 +270,12 @@ public final class TetrisFlow
             return false;
         }
 
+        if (morphFlashFrames > 0)
+            morphFlashFrames--;
+
+        if (morphAtRow >= 0 && activePiece.getY() >= morphAtRow)
+            morph();
+
         gravityFrames++;
 
         if (gravityFrames >= getGravityInterval())
@@ -303,6 +327,32 @@ public final class TetrisFlow
 
         return true;
     }
+
+    // 현재 블록을 다른 모양으로 바꿈 (지금과 같은 모양은 나오지 않음)
+    // public인 이유: kick()과 마찬가지로 나중에 대전 공격 등에서도 쓸 수 있도록
+    public boolean morph()
+    {
+        if (!isPlaying())
+            return false;
+
+        morphAtRow = -1;
+
+        TetrominoEnum current = activePiece.getShape().getType();
+        TetrominoEnum[] types = TetrominoEnum.values();   // [0]은 NoShape
+        TetrominoEnum next;
+        do
+            next = types[1 + random.nextInt(types.length - 1)];
+        while (next == current);
+
+        if (!activePiece.tryChangeShape(new TetrominoShape(next)))
+            return false;
+
+        morphFlashFrames = MORPH_FLASH_FRAMES;
+        morphCount++;
+        groundedFrames = 0;
+        return true;
+    }
+
 
     // 날아가는 블록을 잡음. 잡은 자리에서 다시 일반 낙하 시작
     public boolean catchKicked()
@@ -380,9 +430,14 @@ public final class TetrisFlow
         gravityFrames = 0;
         groundedFrames = 0;
 
-        kickAtRow = random.nextDouble() < KICK_CHANCE
+        kickAtRow = random.nextDouble() < getKickChance()
                 ? KICK_MIN_ROW + random.nextInt(KICK_ROW_RANGE)
                 : -1;
+
+        morphAtRow = kickAtRow < 0 && random.nextDouble() < getKickChance()
+                ? MORPH_MIN_ROW + random.nextInt(MORPH_ROW_RANGE)
+                : -1;
+        morphFlashFrames = 0;
 
         TetrominoShape shape = new TetrominoShape(type);
 
@@ -394,12 +449,17 @@ public final class TetrisFlow
     }
 
 
+    // 현재 레벨에서 새 블록이 차일 확률
+    private double getKickChance()
+    {
+        return Math.min(KICK_CHANCE_MAX,
+                KICK_CHANCE_BASE + (level - 1) * KICK_CHANCE_PER_LEVEL);
+    }
     // 레벨에 따른 자연 낙하 간격
     private int getGravityInterval()
     {
         return Math.max(5, 48 - (level - 1) * 5);
     }
-
 
     public int getScore() { return score; }
 

@@ -16,6 +16,7 @@ class AIInputSource implements IInputSource
     private final Queue<InputEnum> moveQueue = new ArrayDeque<>();
 
     private int waitFrames;
+    private int seenMorphCount;
 
     public AIInputSource(TetrisFlow flow, int moveIntervalFrames)
     {
@@ -38,6 +39,15 @@ class AIInputSource implements IInputSource
             moveQueue.clear();
             return result;
         }
+
+        // 블록 모양이 바뀌면 예전 모양 기준으로 세운 이동 목록은 버리고 새로 계산
+        // (홀드로 블록이 바뀌는 경우와 구분하려고 모양 바뀐 횟수로 판단)
+        if (flow.getMorphCount() != seenMorphCount)
+        {
+            moveQueue.clear();
+            seenMorphCount = flow.getMorphCount();
+        }
+
 
 
         if (waitFrames > 0)

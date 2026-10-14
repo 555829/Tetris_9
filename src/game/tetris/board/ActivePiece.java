@@ -114,6 +114,31 @@ public final class ActivePiece
         return true;
     }
 
+    // 모양 바꾸기 이벤트용: 같은 자리에 다른 모양을 놓아 봄
+    // 그 자리가 막혀 있으면 좌우로 1~2칸, 위로 1칸 옮겨서 다시 시도
+    public boolean tryChangeShape(TetrominoShape newShape)
+    {
+        if (!hasPiece())
+            return false;
+
+        int[][] offsets = { {0, 0}, {-1, 0}, {1, 0}, {0, -1}, {-2, 0}, {2, 0} };
+
+        for (int[] o : offsets)
+        {
+            if (board.canPlace(newShape, x + o[0], y + o[1]))
+            {
+                shape = newShape;
+                x += o[0];
+                y += o[1];
+                rebuildLayer();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
     // shape 위치 변경 후 사용, activeLayer 배열에 변경 반영
     private void rebuildLayer()
     {
