@@ -198,7 +198,7 @@ public class GamePanel extends JPanel
         if (flow.isGameOver())
             message = "게임 오버";
         else if (flow.isMenuOpen())
-            message = "메뉴";
+            message = "";
         else if (flow.isPaused())
             message = "일시정지";
         else

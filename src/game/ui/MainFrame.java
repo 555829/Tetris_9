@@ -46,6 +46,7 @@ public class MainFrame extends JFrame {
 
     private final SettingsPopup settingsPopup;
     private final ExitPopup exitPopup;
+    private final GameMenuPopup gameMenuPopup;
     private final AuthPopup authPopup;
     private final LogoutPopup logoutPopup;
     private final ProfilePopup profilePopup;
@@ -137,6 +138,20 @@ public class MainFrame extends JFrame {
         exitPopup = new ExitPopup(this);
         exitPopup.setVisible(false);
         layeredPane.add(exitPopup, JLayeredPane.POPUP_LAYER);
+        // 게임 중 ESC 메뉴
+        gameMenuPopup = new GameMenuPopup(
+                gameScreen::closeMenu,
+                gameScreen::restart,
+                () -> { gameScreen.stop(); showGameSetup(); });
+        gameMenuPopup.setVisible(false);
+        layeredPane.add(gameMenuPopup, JLayeredPane.POPUP_LAYER);
+        gameScreen.setMenuListener(open -> {
+            if (open) UIUtils.animatePopupIn(gameMenuPopup);
+            else gameMenuPopup.setVisible(false);
+            layeredPane.revalidate();
+            layeredPane.repaint();
+        });
+
 
         authPopup = new AuthPopup(this);
         authPopup.setVisible(false);

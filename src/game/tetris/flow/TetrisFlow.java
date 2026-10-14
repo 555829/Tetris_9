@@ -240,8 +240,17 @@ public final class TetrisFlow
     // true: 자연 낙하로 Piece가 고정 및 교체됨
     public boolean tick()
     {
+        if (kicked != null)
+            return tickKicked();
+
         if (!isPlaying())
             return false;
+
+        if (kickAtRow >= 0 && activePiece.getY() >= kickAtRow)
+        {
+            kick();
+            return false;
+        }
 
         gravityFrames++;
 
@@ -272,6 +281,29 @@ public final class TetrisFlow
 
         return false;
     }
+
+    // 현재 블록을 차서 날려 보냄. 방향은 무작위
+    // public인 이유: 나중에 대전 공격 아이템 등에서도 호출할 수 있도록
+    public boolean kick()
+    {
+        if (!isPlaying())
+            return false;
+
+        double angle = random.nextDouble() * 2 * Math.PI;
+        kicked = new KickedPiece(
+                activePiece.getShape(),
+                activePiece.getX(),
+                activePiece.getY(),
+                KICK_SPEED * Math.cos(angle),
+                KICK_SPEED * Math.sin(angle),
+                KICK_FRAMES);
+
+        activePiece.clear();
+        kickAtRow = -1;
+
+        return true;
+    }
+
     // 날아가는 블록을 잡음. 잡은 자리에서 다시 일반 낙하 시작
     public boolean catchKicked()
     {

@@ -34,7 +34,12 @@ public class GameScreen extends JPanel
     private final List<Tetris> games = new ArrayList<>();
 
     private GameMode mode;
+    private int level;
     private boolean finished;
+
+    // ESC 메뉴가 열리고 닫힐 때 MainFrame에 알려서 메뉴 팝업을 보이거나 숨기게 함
+    private Consumer<Boolean> menuListener = open -> {};
+    private boolean menuShown;
     private int winner;
     private int finishedFrames;
 
@@ -58,6 +63,7 @@ public class GameScreen extends JPanel
         stop();
 
         this.mode = mode;
+        this.level = level;
         finished = false;
         winner = -1;
         finishedFrames = 0;
@@ -85,6 +91,11 @@ public class GameScreen extends JPanel
     public void stop()
     {
         timer.stop();
+        if (menuShown)
+        {
+            menuShown = false;
+            menuListener.accept(false);
+        }
         for (Tetris game : games)
             game.close();
         games.clear();
@@ -116,8 +127,47 @@ public class GameScreen extends JPanel
         }
 
         finished = checkFinished();
+        updateMenu();
         repaint();
     }
+
+    public void setMenuListener(Consumer<Boolean> listener)
+    {
+        menuListener = listener;
+    }
+
+    // 메뉴 상태가 바뀐 순간에만 알림 (매 프레임 팝업을 다시 띄우지 않도록)
+    private void updateMenu()
+    {
+        boolean open = false;
+        for (Tetris game : games)
+            if (game.flow.isMenuOpen())
+                open = true;
+
+        if (open != menuShown)
+        {
+            menuShown = open;
+            menuListener.accept(open);
+        }
+    }
+
+    // 메뉴의 "계속하기": 메뉴를 연 게임의 메뉴를 닫음 (openMenu()는 열기/닫기를 번갈아 함)
+    public void closeMenu()
+    {
+        for (Tetris game : games)
+            if (game.flow.isMenuOpen())
+                game.flow.openMenu();
+        updateMenu();
+        requestFocusInWindow();
+    }
+
+    // 메뉴의 "다시 시작": 같은 모드, 같은 시작 레벨로 새 게임
+    public void restart()
+    {
+        start(mode, level);
+        updateMenu();
+    }
+
 
     private boolean checkFinished()
     {
