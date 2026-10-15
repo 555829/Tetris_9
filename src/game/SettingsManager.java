@@ -2,14 +2,17 @@ package game;
 
 import javax.swing.JFrame;
 import java.io.*;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Properties;
 
 //======================================================================================================================
 //설정 ui에서 받아온 값을 저장하거나 불러오는 등 설정과 관련된 일을 여기서 합니다
 //======================================================================================================================
 public class SettingsManager {
-    //asset 폴더에있는 config.properties에서 설정값 저장된거 불러오고 저장하고 합니다
-    private static final String FILE_PATH = "src/game/asset/config.properties";
+    private static final String SETTINGS_FILE_NAME = "config.properties";
     private final DisplaySettingsController displaySettings = new DisplaySettingsController();
 
     //==================================================================================================================
@@ -20,8 +23,8 @@ public class SettingsManager {
     public int fxVolume = 30;
     public String displayMode = "창 모드";
     public String resolution = "1280 x 720 ";
-    public String p1Left = "LEFT", p1Right = "RIGHT", p1Soft = "DOWN", p1Hard = "SPACE" , p1Rotation = "V";
-    public String p2Left = "A", p2Right = "D", p2Soft = "S", p2Hard = "W"  , p2Rotation = "L";
+    public String p1Left = "LEFT", p1Right = "RIGHT", p1Soft = "DOWN", p1Hard = "SPACE", p1Rotation = "V", p1Hold = "E";
+    public String p2Left = "A", p2Right = "D", p2Soft = "S", p2Hard = "W", p2Rotation = "L", p2Hold = "I";
 
     //==================================================================================================================
     //설정한 값을 저장합니다
@@ -39,29 +42,64 @@ public class SettingsManager {
         prop.setProperty("p1Soft", p1Soft);
         prop.setProperty("p1Hard", p1Hard);
         prop.setProperty("p1Rotation", p1Rotation);
+        prop.setProperty("p1Hold", p1Hold);
 
         prop.setProperty("p2Left", p2Left);
         prop.setProperty("p2Right", p2Right);
         prop.setProperty("p2Soft", p2Soft);
         prop.setProperty("p2Hard", p2Hard);
         prop.setProperty("p2Rotation", p2Rotation);
+        prop.setProperty("p2Hold", p2Hold);
 
-        try (FileOutputStream out = new FileOutputStream(FILE_PATH)) {
-            prop.store(out, "TetrisGameSettingsConfig");
+        Path file = settingsFile();
+        try {
+            Path parent = file.getParent();
+            if (parent != null) Files.createDirectories(parent);
+            try (OutputStream out = Files.newOutputStream(file)) {
+                prop.store(out, "TetrisGameSettingsConfig");
+            }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("설정 저장 실패 (" + file + "): " + e.getMessage());
         }
+    }
+
+    private static Path settingsFile() {
+        String configuredPath = System.getProperty("tetris.config");
+        if (configuredPath != null && !configuredPath.trim().isEmpty()) {
+            return Paths.get(configuredPath).toAbsolutePath().normalize();
+        }
+
+        try {
+            Path codeLocation = Paths.get(SettingsManager.class.getProtectionDomain()
+                    .getCodeSource().getLocation().toURI()).toAbsolutePath().normalize();
+            if (Files.isRegularFile(codeLocation)) {
+                return codeLocation.resolveSibling(SETTINGS_FILE_NAME);
+            }
+
+            // IDE 실행에서는 프로젝트 안의 기존 설정 파일을 사용합니다.
+            Path candidate = codeLocation;
+            while (candidate != null) {
+                Path sourceSettings = candidate.resolve("src/game/asset").resolve(SETTINGS_FILE_NAME);
+                if (Files.isRegularFile(sourceSettings)) return sourceSettings;
+                candidate = candidate.getParent();
+            }
+        } catch (URISyntaxException | SecurityException ignored) {
+            // 경로를 찾지 못하면 사용자 작업 폴더의 포터블 설정 파일을 사용합니다.
+        }
+
+        return Paths.get(System.getProperty("user.dir", "."), SETTINGS_FILE_NAME)
+                .toAbsolutePath().normalize();
     }
 
     //==================================================================================================================
     //설정 파일(값) 불러옵니다
     //==================================================================================================================
     public void load() {
-        File file = new File(FILE_PATH);
-        if (!file.exists()) return;
+        Path file = settingsFile();
+        if (!Files.isRegularFile(file)) return;
 
         Properties prop = new Properties();
-        try (FileInputStream in = new FileInputStream(file)) {
+        try (InputStream in = Files.newInputStream(file)) {
             prop.load(in);
             masterVolume = Integer.parseInt(prop.getProperty("masterVolume", "80"));
             bgmVolume = Integer.parseInt(prop.getProperty("bgmVolume", "60"));
@@ -75,14 +113,16 @@ public class SettingsManager {
             p1Soft = prop.getProperty("p1Soft", "DOWN");
             p1Hard = prop.getProperty("p1Hard", "SPACE");
             p1Rotation = prop.getProperty("p1Rotation", "V");
+            p1Hold = prop.getProperty("p1Hold", "E");
 
             p2Left = prop.getProperty("p2Left", "A");
             p2Right = prop.getProperty("p2Right", "D");
             p2Soft = prop.getProperty("p2Soft", "S");
             p2Hard = prop.getProperty("p2Hard", "W");
             p2Rotation = prop.getProperty("p2Rotation", "L");
-        } catch (IOException e) {
-            e.printStackTrace();
+            p2Hold = prop.getProperty("p2Hold", "I");
+        } catch (IOException | IllegalArgumentException e) {
+            System.err.println("설정 불러오기 실패 (" + file + "): " + e.getMessage());
         }
     }
 

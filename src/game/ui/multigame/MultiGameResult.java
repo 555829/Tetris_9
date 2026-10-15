@@ -1,11 +1,11 @@
 package game.ui.multigame;
 
-import game.tetris.Tetris;
-import game.tetris.board.ActivePiece;
-import game.tetris.board.Board;
-import game.tetris.flow.TetrisFlow;
-import game.tetris.tetromino.TetrominoEnum;
-import game.tetris.tetromino.TetrominoShape;
+import game.ui.multigame.engine.Tetris;
+import game.ui.multigame.engine.board.ActivePiece;
+import game.ui.multigame.engine.board.Board;
+import game.ui.multigame.engine.flow.TetrisFlow;
+import game.ui.multigame.engine.tetromino.TetrominoEnum;
+import game.ui.multigame.engine.tetromino.TetrominoShape;
 import game.ui.common.UIUtils;
 
 import javax.swing.JPanel;

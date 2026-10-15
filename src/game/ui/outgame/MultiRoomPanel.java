@@ -521,7 +521,7 @@ public class MultiRoomPanel extends JPanel {
     }
 
     private void editGameMode() {
-        String[] modes = new String[]{"시간전 (90초)", "클래식 (40줄)", "아이템전"};
+        String[] modes = new String[]{"시간전 (90초)", "클래식 (40줄)"};
         JComboBox<String> selector = new JComboBox<>(modes);
         selector.setSelectedItem(gameModeStr);
         selector.setFont(UIUtils.getBodyFont(Font.PLAIN, 14f));

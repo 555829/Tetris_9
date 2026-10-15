@@ -2,12 +2,11 @@ package game.ui.multigame;
 
 import game.NetworkManager;
 import game.SettingsManager;
-import game.tetris.Tetris;
-import game.tetris.board.BoardSnapshotCodec;
-import game.tetris.input.InputSourceType;
-import game.tetris.tetrominoQueue.PieceGenerator_7Bag;
-import game.tetris.tetrominoQueue.TetrominoQueue;
-import game.ui.GamePanel;
+import game.ui.multigame.engine.Tetris;
+import game.ui.multigame.engine.board.BoardSnapshotCodec;
+import game.ui.multigame.engine.input.InputSourceType;
+import game.ui.multigame.engine.tetrominoQueue.PieceGenerator_7Bag;
+import game.ui.multigame.engine.tetrominoQueue.TetrominoQueue;
 import game.ui.common.UIUtils;
 import game.ui.common.ResponsiveGridLayout;
 import game.ui.outgame.MultiRoomPanel.SlotType;
@@ -19,7 +18,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.function.Consumer;
 
 //======================================================================================================================
@@ -42,7 +40,7 @@ public class MultiGameScreen extends JPanel {
 
     private final Map<Integer, Tetris> allGames = new HashMap<>();
     private final Map<Integer, Tetris> localGames = new HashMap<>();
-    private final Map<Integer, GamePanel> gamePanels = new HashMap<>();
+    private final Map<Integer, MultiGameBoardPanel> gamePanels = new HashMap<>();
 
     private final SlotType[] slotTypes = new SlotType[4];
     private final boolean[] isGameOver = new boolean[4];
@@ -51,8 +49,6 @@ public class MultiGameScreen extends JPanel {
     private final int[] reportedLines = new int[4];
     private final int[] eliminationOrder = new int[4];
     private final String[] playerNames = new String[4];
-    private final int[] shields = new int[4];
-    private final Random random = new Random();
     private Consumer<String> networkListener;
 
     private final JPanel gridPanel;
@@ -111,12 +107,15 @@ public class MultiGameScreen extends JPanel {
         JButton leaveButton = UIUtils.createDangerButton("방 나가기");
         leaveButton.setPreferredSize(new Dimension(142, 38));
         leaveButton.setMaximumSize(new Dimension(142, 38));
+        leaveButton.setFocusable(false);
         leaveButton.addActionListener(e -> leaveGame());
         chatToggleButton = UIUtils.createSecondaryButton("채팅 숨기기");
         chatToggleButton.setPreferredSize(new Dimension(120, 38));
+        chatToggleButton.setFocusable(false);
         chatToggleButton.addActionListener(e -> toggleChatPanel());
         JButton settingsButton = UIUtils.createSecondaryButton("설정");
         settingsButton.setPreferredSize(new Dimension(92, 38));
+        settingsButton.setFocusable(false);
         settingsButton.addActionListener(e -> {
             if (this.onSettingsRequested != null) this.onSettingsRequested.run();
         });
@@ -169,7 +168,6 @@ public class MultiGameScreen extends JPanel {
         java.util.Arrays.fill(reportedScores, 0);
         java.util.Arrays.fill(reportedLines, 0);
         java.util.Arrays.fill(eliminationOrder, 0);
-        java.util.Arrays.fill(shields, 0);
         java.util.Arrays.fill(playerNames, "");
         if (nicknames != null) {
             System.arraycopy(nicknames, 0, playerNames, 0, Math.min(nicknames.length, playerNames.length));
@@ -200,8 +198,7 @@ public class MultiGameScreen extends JPanel {
                 localGames.put(i, game);
             }
 
-            // GamePanel은 원본 그대로 사용하되, 우리가 관리하는 Tetris 객체를 주입
-            GamePanel panel = new GamePanel(game);
+            MultiGameBoardPanel panel = new MultiGameBoardPanel(game);
             gamePanels.put(i, panel);
 
             String name = playerNames[i] == null ? "" : playerNames[i].trim();
@@ -282,28 +279,6 @@ public class MultiGameScreen extends JPanel {
                         NetworkManager.getInstance().requestUserInfo();
                     } catch (Exception ignored) {}
                 }
-                else if ("RES_ATTACK_LINES".equals(cmd) && tokens.length >= 3
-                        && mode == MultiGameMode.ITEM_MATCH) {
-                    try {
-                        int attackerSlot = Integer.parseInt(tokens[1]);
-                        int lines = Integer.parseInt(tokens[2]);
-                        if (attackerSlot < 0 || attackerSlot >= slotTypes.length || lines < 1 || lines > 20) return;
-                        for (Map.Entry<Integer, Tetris> entry : localGames.entrySet()) {
-                            int targetSlot = entry.getKey();
-                            if (targetSlot == attackerSlot || isGameOver[targetSlot]) continue;
-                            if (shields[targetSlot] > 0) {
-                                shields[targetSlot]--;
-                                continue;
-                            }
-                            entry.getValue().flow.applyGarbageLines(lines, random.nextInt(entry.getValue().board.getWidth()));
-                            if (entry.getValue().flow.isGameOver()) {
-                                isGameOver[targetSlot] = true;
-                                NetworkManager.getInstance().reportGameOver(targetSlot,
-                                        entry.getValue().flow.getScore(), entry.getValue().flow.getLines());
-                            }
-                        }
-                    } catch (Exception ignored) {}
-                }
                 else if ("RES_CHAT".equals(cmd) && tokens.length >= 3) {
                     appendChat(tokens[1], tokens[2]);
                 }
@@ -341,9 +316,9 @@ public class MultiGameScreen extends JPanel {
         }
         if (mode == MultiGameMode.TIME_ATTACK) {
             long remaining = Math.max(0, mode.getTimeLimitSec() - elapsedNanos / 1_000_000_000L);
-            modeStatus.setText("시간전 · 남은 시간 " + remaining + "초" + itemStatus());
+            modeStatus.setText("시간전 · 남은 시간 " + remaining + "초");
         } else {
-            modeStatus.setText(mode.getLabel() + itemStatus());
+            modeStatus.setText(mode.getLabel());
         }
 
         for (Map.Entry<Integer, Tetris> entry : localGames.entrySet()) {
@@ -356,15 +331,6 @@ public class MultiGameScreen extends JPanel {
 
             int lines = game.flow.getLines();
             if (lines > lastReportedLines[slot]) {
-                if (mode == MultiGameMode.ITEM_MATCH) {
-                    int cleared = lines - lastReportedLines[slot];
-                    if (cleared == 1) {
-                        shields[slot] = Math.min(3, shields[slot] + 1);
-                    } else {
-                        int attackLines = cleared == 2 ? 1 : cleared == 3 ? 2 : 4;
-                        NetworkManager.getInstance().sendAttackLines(slot, attackLines);
-                    }
-                }
                 lastReportedLines[slot] = lines;
             }
 
@@ -432,11 +398,6 @@ public class MultiGameScreen extends JPanel {
     private void sendTimeResult(int slot, Tetris game) {
         NetworkManager.getInstance().reportTimeResult(slot,
                 game.flow.getScore(), game.flow.getLines());
-    }
-
-    private String itemStatus() {
-        if (mode != MultiGameMode.ITEM_MATCH) return "";
-        return " · 방어막 " + shields[mySlotIndex];
     }
 
     private void reportResult() {
@@ -529,17 +490,11 @@ public class MultiGameScreen extends JPanel {
     }
 
     private int compareStandingSlots(int first, int second) {
-        if (mode == MultiGameMode.ITEM_MATCH) {
-            if (isGameOver[first] != isGameOver[second]) return isGameOver[first] ? 1 : -1;
-            if (isGameOver[first] && eliminationOrder[first] != eliminationOrder[second]) {
-                return Integer.compare(eliminationOrder[second], eliminationOrder[first]);
-            }
+        if (isGameOver[first] != isGameOver[second]) return isGameOver[first] ? 1 : -1;
+        if (isGameOver[first] && eliminationOrder[first] != eliminationOrder[second]) {
+            return Integer.compare(eliminationOrder[second], eliminationOrder[first]);
         }
-        int firstPrimary = mode == MultiGameMode.ITEM_MATCH
-                ? reportedScores[first] : reportedLines[first];
-        int secondPrimary = mode == MultiGameMode.ITEM_MATCH
-                ? reportedScores[second] : reportedLines[second];
-        int primary = Integer.compare(secondPrimary, firstPrimary);
+        int primary = Integer.compare(reportedLines[second], reportedLines[first]);
         if (primary != 0) return primary;
         int score = Integer.compare(reportedScores[second], reportedScores[first]);
         if (score != 0) return score;
@@ -613,7 +568,7 @@ public class MultiGameScreen extends JPanel {
         if (onFinished != null) onFinished.accept("LEFT_GAME");
     }
 
-    private JComponent playerColumn(String name, GamePanel panel, int slot) {
+    private JComponent playerColumn(String name, MultiGameBoardPanel panel, int slot) {
         JPanel column = new JPanel(new BorderLayout(0, 2)) {
             @Override
             protected void paintChildren(Graphics graphics) {

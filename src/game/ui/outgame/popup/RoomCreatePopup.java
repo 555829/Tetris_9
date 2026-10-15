@@ -17,7 +17,7 @@ public class RoomCreatePopup extends JPanel {
     private final JPanel box = new JPanel(new BorderLayout(12, 16));
     private final JTextField titleField = new JTextField();
     private final JComboBox<String> modeSelector = new JComboBox<>(
-            new String[]{"시간전 (90초)", "클래식 (40줄)", "아이템전"});
+            new String[]{"시간전 (90초)", "클래식 (40줄)"});
     private final JLabel errorLabel = new JLabel(" ", SwingConstants.CENTER);
     private final Timer animationTimer;
     private long animationStartedAt;

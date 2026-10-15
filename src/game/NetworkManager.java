@@ -239,7 +239,6 @@ public class NetworkManager {
     public void reportGameOver(int slot, int score, int lines) {
         send("REQ_GAME_OVER|" + slot + "|" + score + "|" + lines);
     }
-    public void sendAttackLines(int slot, int lines) { send("REQ_ATTACK_LINES|" + slot + "|" + lines); }
     public void reportMatchWin(int slot, int score, int lines) {
         send("REQ_MATCH_WIN|" + slot + "|" + score + "|" + lines);
     }

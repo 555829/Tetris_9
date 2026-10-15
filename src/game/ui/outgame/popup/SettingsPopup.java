@@ -196,7 +196,8 @@ public class SettingsPopup extends JPanel {
                 new KeyBindingItem("우 이동", settings.p1Right, val -> settings.p1Right = val),
                 new KeyBindingItem("소프트드롭", settings.p1Soft, val -> settings.p1Soft = val),
                 new KeyBindingItem("하드드롭", settings.p1Hard, val -> settings.p1Hard = val),
-                new KeyBindingItem("회전", settings.p1Rotation, val -> settings.p1Rotation = val)
+                new KeyBindingItem("회전", settings.p1Rotation, val -> settings.p1Rotation = val),
+                new KeyBindingItem("홀드", settings.p1Hold, val -> settings.p1Hold = val)
         }));
 
         // 2P 키 설정
@@ -205,7 +206,8 @@ public class SettingsPopup extends JPanel {
                 new KeyBindingItem("우 이동", settings.p2Right, val -> settings.p2Right = val),
                 new KeyBindingItem("소프트드롭", settings.p2Soft, val -> settings.p2Soft = val),
                 new KeyBindingItem("하드드롭", settings.p2Hard, val -> settings.p2Hard = val),
-                new KeyBindingItem("회전", settings.p2Rotation, val -> settings.p2Rotation = val)
+                new KeyBindingItem("회전", settings.p2Rotation, val -> settings.p2Rotation = val),
+                new KeyBindingItem("홀드", settings.p2Hold, val -> settings.p2Hold = val)
         }));
 
         return panel;
