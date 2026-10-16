@@ -70,14 +70,14 @@ public final class TetrisFlow
             ActivePiece activePiece,
             TetrominoQueue queue,
             timerClass timer,
-            int startLevel)              //was: added
+            int startLevel)
     {
         this.board = board;
         this.activePiece = activePiece;
         this.queue = queue;
         this.timer = timer;
-        this.startLevel = startLevel;    //was: added
-        this.level = startLevel;         //was: added
+        this.startLevel = startLevel;
+        this.level = startLevel;
     }
 
     // 게임 최초 시작
@@ -411,7 +411,7 @@ public final class TetrisFlow
         score += LINE_POINTS[Math.min(cleared, 4)] * level;
 
         lines += cleared;
-        level = startLevel + lines / 10;     // was: level = 1 + lines / 10;
+        level = startLevel + lines / 10;
 
         holdUsed = false;
 
