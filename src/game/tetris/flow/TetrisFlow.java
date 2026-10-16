@@ -2,6 +2,7 @@ package game.tetris.flow;
 
 import game.tetris.board.ActivePiece;
 import game.tetris.board.Board;
+import game.tetris.board.SpawnPosition;
 import game.tetris.tetromino.TetrominoEnum;
 import game.tetris.tetromino.TetrominoShape;
 import game.tetris.tetrominoQueue.TetrominoQueue;
@@ -9,10 +10,14 @@ import game.tetris.timer.timerClass;
 import game.tetris.input.AI.PieceInfo;
 
 import java.util.Random;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 public final class TetrisFlow
 {
     private static final int LOCK_DELAY = 30;
+    private static final int MAX_LOCK_RESETS = 15;
+    private static final int[] LINE_ATTACKS = {0, 0, 1, 2, 4};
 
     private static final int[] LINE_POINTS = {
             0, 100, 300, 500, 800
@@ -56,8 +61,14 @@ public final class TetrisFlow
 
     private int gravityFrames;
     private int groundedFrames;
+    private int lockResets;
+    private int outgoingAttack;
+    private int pendingGarbageLines;
+    // Each batch stores {line count, hole column}; memory does not grow per row.
+    private final Deque<int[]> pendingGarbage = new ArrayDeque<>();
+    private final Random garbageRandom = new Random();
 
-    private final Random random = new Random();
+    private final Random random;
     private KickedPiece kicked;      // null이면 차인 블록 없음
     private int kickAtRow = -1;      // -1이면 이번 블록은 차이지 않음
 
@@ -72,10 +83,20 @@ public final class TetrisFlow
             timerClass timer,
             int startLevel)              //was: added
     {
+        this(board, activePiece, queue, timer, startLevel, new Random());
+    }
+
+    /** Random injection makes special-piece behavior reproducible in tests. */
+    public TetrisFlow(Board board, ActivePiece activePiece, TetrominoQueue queue,
+                      timerClass timer, int startLevel, Random random)
+    {
+        if (random == null) throw new IllegalArgumentException("Random is required");
+        this.random = random;
         this.board = board;
         this.activePiece = activePiece;
         this.queue = queue;
         this.timer = timer;
+        if (startLevel < 1) throw new IllegalArgumentException("Start level must be positive");
         this.startLevel = startLevel;    //was: added
         this.level = startLevel;         //was: added
     }
@@ -141,6 +162,9 @@ public final class TetrisFlow
     {
         gameOver = true;
         activePiece.clear();
+        pendingGarbage.clear();
+        pendingGarbageLines = 0;
+        kicked = null;
     }
 
 
@@ -151,10 +175,11 @@ public final class TetrisFlow
                 (direction != -1 && direction != 1))
             return false;
 
+        boolean wasGrounded = isGrounded();
         boolean moved = activePiece.tryMove(direction, 0);
 
         if (moved)
-            groundedFrames = 0;
+            resetLockDelay(wasGrounded);
 
         return moved;
     }
@@ -165,10 +190,11 @@ public final class TetrisFlow
         if (!isPlaying())
             return false;
 
+        boolean wasGrounded = isGrounded();
         boolean rotated = activePiece.tryRotateRight();
 
         if (rotated)
-            groundedFrames = 0;
+            resetLockDelay(wasGrounded);
 
         return rotated;
     }
@@ -178,10 +204,11 @@ public final class TetrisFlow
         if (!isPlaying())
             return false;
 
+        boolean wasGrounded = isGrounded();
         boolean rotated = activePiece.tryRotateLeft();
 
         if (rotated)
-            groundedFrames = 0;
+            resetLockDelay(wasGrounded);
 
         return rotated;
     }
@@ -414,7 +441,19 @@ public final class TetrisFlow
         level = startLevel + lines / 10;     // was: level = 1 + lines / 10;
 
         holdUsed = false;
+        outgoingAttack += LINE_ATTACKS[Math.min(cleared, 4)];
 
+        // Apply only after locking, so incoming rows cannot overlap an active piece.
+        while (!pendingGarbage.isEmpty())
+        {
+            int[] batch = pendingGarbage.removeFirst();
+            pendingGarbageLines -= batch[0];
+            if (!board.addGarbageLines(batch[0], batch[1]))
+            {
+                markGameOver();
+                return;
+            }
+        }
         spawnNextPiece();
     }
 
@@ -429,6 +468,7 @@ public final class TetrisFlow
     {
         gravityFrames = 0;
         groundedFrames = 0;
+        lockResets = 0;
 
         kickAtRow = random.nextDouble() < getKickChance()
                 ? KICK_MIN_ROW + random.nextInt(KICK_ROW_RANGE)
@@ -439,12 +479,8 @@ public final class TetrisFlow
                 : -1;
         morphFlashFrames = 0;
 
-        TetrominoShape shape = new TetrominoShape(type);
-
-        int spawnX =
-                (board.getWidth() - TetrominoShape.SIZE) / 2;
-
-        if (!activePiece.spawn(shape, spawnX, 0))
+        SpawnPosition spawn = SpawnPosition.find(board.getWidth(), board.getHeight(), type);
+        if (spawn == null || !activePiece.spawn(spawn.shape, spawn.x, spawn.y))
             gameOver = true;
     }
 
@@ -467,27 +503,49 @@ public final class TetrisFlow
 
     public int getLevel() { return level; }
 
+    private boolean isGrounded()
+    {
+        return !board.canPlace(activePiece.getShape(), activePiece.getX(), activePiece.getY() + 1);
+    }
+
+    private void resetLockDelay(boolean wasGrounded)
+    {
+        if (wasGrounded && lockResets < MAX_LOCK_RESETS)
+        {
+            groundedFrames = 0;
+            lockResets++;
+        }
+    }
+
+    /** Kept for existing callers; now queues rows until the current piece locks. */
     public void applyGarbageLines(int lineCount, int holeColumn)
     {
-        if (!isPlaying()) return;
-        if (!board.addGarbageLines(lineCount, holeColumn))
-        {
-            gameOver = true;
-            activePiece.clear();
-            return;
-        }
+        receiveAttack(lineCount, holeColumn);
+    }
 
-        while (activePiece.hasPiece()
-                && !board.canPlace(activePiece.getShape(), activePiece.getX(), activePiece.getY()))
-        {
-            if (!activePiece.tryMove(0, -1))
-            {
-                gameOver = true;
-                activePiece.clear();
-                return;
-            }
-        }
-        groundedFrames = 0;
+    public void receiveAttack(int lineCount)
+    {
+        receiveAttack(lineCount, garbageRandom.nextInt(board.getWidth()));
+    }
+
+    public void receiveAttack(int lineCount, int holeColumn)
+    {
+        if (lineCount < 0 || holeColumn < 0 || holeColumn >= board.getWidth())
+            throw new IllegalArgumentException("Invalid attack");
+        if (gameOver || lineCount == 0) return;
+        int total = Math.addExact(pendingGarbageLines, lineCount);
+        pendingGarbage.addLast(new int[]{lineCount, holeColumn});
+        pendingGarbageLines = total;
+    }
+
+    public int getPendingGarbageLines() { return pendingGarbageLines; }
+
+    /** Drain once per game loop and forward to the opponent. */
+    public int consumeOutgoingAttack()
+    {
+        int result = outgoingAttack;
+        outgoingAttack = 0;
+        return result;
     }
 
     public TetrominoEnum getHoldPiece()

@@ -21,6 +21,19 @@ public class PieceGenerator_7Bag implements PieceGenerator
     };
 
     private final List<TetrominoEnum> bag = new ArrayList<>();
+    private final boolean omitLine;
+
+    public PieceGenerator_7Bag()
+    {
+        omitLine = false;
+    }
+
+    public PieceGenerator_7Bag(int width, int height)
+    {
+        game.rules.BoardDimensions.validate(width, height);
+        // A four-cell line has no legal rotation on a 3 x 3 board.
+        omitLine = width == 3 && height == 3;
+    }
 
     @Override
     public TetrominoEnum getPiece()
@@ -35,7 +48,9 @@ public class PieceGenerator_7Bag implements PieceGenerator
 
     private void refillBag()
     {
-        Collections.addAll(bag, tetroRange);
+        for (TetrominoEnum type : tetroRange)
+            if (!omitLine || type != LineShape)
+                bag.add(type);
         Collections.shuffle(bag);
     }
 }

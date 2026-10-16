@@ -52,9 +52,15 @@ public class Tetris {
 
     public Tetris(InputSourceType inputSource, TetrominoQueue queue, int startLevel, SettingsManager settings)
     {
+        this(inputSource, queue, startLevel, settings, 10, 20);
+    }
+
+    public Tetris(InputSourceType inputSource, TetrominoQueue queue, int startLevel,
+                  SettingsManager settings, int width, int height)
+    {
         this.queue = queue;
 
-        board = new Board(10, 20);
+        board = new Board(width, height);
         activePiece = new ActivePiece(board);
         flow = new TetrisFlow(board, activePiece, queue, timer, startLevel);
         input = new InputTranslator(inputSource, flow, settings);
