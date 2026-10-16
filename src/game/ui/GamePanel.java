@@ -32,7 +32,6 @@ public class GamePanel extends JPanel
     private static final Color MORPH = new Color(120, 220, 255);
 
     // ordinal() 대신 enum 값으로 색을 찾음. 새 블록 모양을 추가해도 색이 밀리지 않게 하기 위함
-    // (원본 Board.drawSquare는 shape.ordinal()로 색 배열을 참조했음)
     private static final Map<TetrominoEnum, Color> COLORS = new EnumMap<>(TetrominoEnum.class);
     static
     {

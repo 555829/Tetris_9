@@ -112,8 +112,6 @@ public class GameScreen extends JPanel
         }
 
         // 한 명이 일시정지(또는 메뉴)하면 다른 보드도 멈춰야 함
-        // 안 그러면 사람이 멈춘 동안 AI는 계속 플레이하게 됨
-        // 일시정지한 게임은 계속 tick 해야 함. 일시정지 해제 키를 거기서 읽기 때문
         boolean someonePaused = false;
         for (Tetris game : games)
             if (game.flow.isPaused() || game.flow.isMenuOpen())
@@ -136,7 +134,7 @@ public class GameScreen extends JPanel
         menuListener = listener;
     }
 
-    // 메뉴 상태가 바뀐 순간에만 알림 (매 프레임 팝업을 다시 띄우지 않도록)
+    // 메뉴 상태가 바뀐 순간에만 알림
     private void updateMenu()
     {
         boolean open = false;

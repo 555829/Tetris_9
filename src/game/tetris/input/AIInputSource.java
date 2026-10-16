@@ -32,7 +32,6 @@ class AIInputSource implements IInputSource
     {
         InputData result = new InputData();
 
-        // 블록이 차여서 날아가는 중이면 조작할 블록이 없음 (getCurrentPieceInfo()가 null)
         // 이전 블록용 이동 목록이 다음 블록에 적용되지 않도록 비워 둠
         if (flow.getCurrentPieceInfo() == null)
         {
@@ -41,13 +40,11 @@ class AIInputSource implements IInputSource
         }
 
         // 블록 모양이 바뀌면 예전 모양 기준으로 세운 이동 목록은 버리고 새로 계산
-        // (홀드로 블록이 바뀌는 경우와 구분하려고 모양 바뀐 횟수로 판단)
         if (flow.getMorphCount() != seenMorphCount)
         {
             moveQueue.clear();
             seenMorphCount = flow.getMorphCount();
         }
-
 
 
         if (waitFrames > 0)
