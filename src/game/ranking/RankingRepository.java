@@ -10,7 +10,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-// 상위 점수(TOP 10)를 보관하고 탭으로 구분한 텍스트 파일에 저장
+/**
+ * Keeps the top scores and persists them to a tab-separated text file,
+ * so the ranking survives closing the game.
+ */
 public final class RankingRepository
 {
     public static final int MAX_ENTRIES = 10;
@@ -26,7 +29,7 @@ public final class RankingRepository
         load();
     }
 
-    // 사용자 홈 폴더에 저장 → 프로젝트 폴더 밖이라 기록 파일이 git에 올라가지 않음
+    /** Stored in the user's home folder so the file is never committed to git by accident. */
     public static RankingRepository openDefault()
     {
         return new RankingRepository(
@@ -43,15 +46,17 @@ public final class RankingRepository
         return entries.isEmpty() ? 0 : entries.get(0).getScore();
     }
 
-    // 이 점수가 TOP 10에 들어가는지 확인. 화면에서 이름 입력을 받을지 결정할 때 사용
+    /** True if this score would make it onto the board, so the UI knows whether to ask for a name. */
     public boolean qualifies(int score)
     {
         return entries.size() < MAX_ENTRIES
                 || score > entries.get(entries.size() - 1).getScore();
     }
 
-    // 기록을 추가하고 파일에 저장
-    // 반환값: 새 기록의 순위(0부터 시작), TOP 10에 못 들면 -1
+    /**
+     * Adds a result and saves the board.
+     * @return 0-based rank of the new entry, or -1 if it didn't make the top list
+     */
     public int add(String name, int score, int level, int lines)
     {
         if (!qualifies(score))
@@ -59,7 +64,7 @@ public final class RankingRepository
 
         RankingEntry entry = new RankingEntry(cleanName(name), score, level, lines);
 
-        // 같은 점수가 있으면 그 뒤에 넣음 → 동점이면 먼저 세운 기록이 위 순위
+        // Insert after any equal scores: on a tie, the earlier record keeps the higher rank.
         int index = 0;
         while (index < entries.size() && entries.get(index).getScore() >= score)
             index++;
@@ -109,12 +114,12 @@ public final class RankingRepository
         }
         catch (IOException e)
         {
-            // 저장에 실패해도 게임은 멈추지 않음 (랭킹만 저장되지 않음)
+            // A failed save should never crash the game; the ranking just won't persist.
             System.err.println("Could not save ranking file: " + e.getMessage());
         }
     }
 
-    // 파일을 직접 고쳤거나 쓰다 만 경우에도 게임이 멈추지 않도록, 형식이 잘못된 줄은 건너뜀
+    // A hand-edited or half-written file must not crash the game, so bad lines are skipped.
     private static RankingEntry parse(String line)
     {
         String[] parts = line.split("\t");
@@ -135,7 +140,7 @@ public final class RankingRepository
         }
     }
 
-    // 이름에 탭이나 줄바꿈이 있으면 파일 형식이 깨지므로 공백으로 바꾸고, 12자로 자름
+    // Tabs and line breaks would corrupt the file format.
     private static String cleanName(String name)
     {
         String cleaned = name == null ? "" : name.replaceAll("[\\t\\r\\n]", " ").trim();

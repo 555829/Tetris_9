@@ -89,6 +89,7 @@ public class GameOverPanel extends JPanel
         resultLabel.setText("점수 " + score + "   레벨 " + level + "   줄 " + lines);
 
         // 랭킹에는 1인용 점수만 기록함
+        // 대전은 상대가 지면 바로 끝나서 1인용 점수와 비교할 수 없기 때문
         boolean qualifies = !result.getMode().isVersus() && ranking.qualifies(score);
         entryRow.setVisible(qualifies);
         nameField.setText("");

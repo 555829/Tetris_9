@@ -1,7 +1,6 @@
 package game.ranking;
 
-// 랭킹에 올라가는 게임 기록 1개 (이름, 점수, 레벨, 줄 수)
-// 만든 뒤에는 값이 바뀌지 않음
+/** One finished game on the ranking board. Immutable so the board can hand entries out safely. */
 public final class RankingEntry
 {
     private final String name;
