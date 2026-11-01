@@ -1,10 +1,9 @@
 package game.tetris.input.AI;
 
 import game.tetris.board.Board;
+import game.tetris.board.SpawnPosition;
 import game.tetris.input.InputEnum;
-import game.tetris.tetromino.RotationState;
 import game.tetris.tetromino.TetrominoEnum;
-import game.tetris.tetromino.TetrominoShape;
 
 public class TetrisAI {
     private PolicySelector policySelector = new PolicySelector();
@@ -16,14 +15,18 @@ public class TetrisAI {
     {
         PolicySelector.AIPolicy policy = policySelector.getPolicy(board);
 
+        SpawnPosition spawn = SpawnPosition.find(board.getWidth(), board.getHeight(), holdPiece);
         PieceInfo holdStart = new PieceInfo();
-        holdStart.tetromino = holdPiece;
-        holdStart.rotation = RotationState.SPAWN;
-        holdStart.x = (board.getWidth() - TetrominoShape.SIZE) / 2;
-        holdStart.y = 0;
+        if (spawn != null) {
+            holdStart.tetromino = holdPiece;
+            holdStart.rotation = spawn.shape.getRotation();
+            holdStart.x = spawn.x;
+            holdStart.y = spawn.y;
+        }
 
         PieceInfo[] curPiecePlacements = getPlacements(board, curPiece, false);
-        PieceInfo[] holdPiecePlacements = getPlacements(board, holdStart, true);
+        PieceInfo[] holdPiecePlacements = spawn == null ? new PieceInfo[0]
+                : getPlacements(board, holdStart, true);
         PieceInfo[] availablePlacements = new PieceInfo[curPiecePlacements.length + holdPiecePlacements.length];
         System.arraycopy(curPiecePlacements, 0, availablePlacements, 0, curPiecePlacements.length);
         System.arraycopy(holdPiecePlacements, 0, availablePlacements, curPiecePlacements.length, holdPiecePlacements.length);

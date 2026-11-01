@@ -20,6 +20,7 @@ public final class Board
 
     public Board(int width, int height)
     {
+        game.rules.BoardDimensions.validate(width, height);
         this.width = width;
         this.height = height;
 
@@ -139,8 +140,9 @@ public final class Board
     //멀티플레이 아이템전 쪽 코드
     public boolean addGarbageLines(int lineCount, int holeColumn)
     {
-        if (lineCount < 1 || lineCount >= height || holeColumn < 0 || holeColumn >= width)
+        if (lineCount < 0 || lineCount >= height || holeColumn < 0 || holeColumn >= width)
             return false;
+        if (lineCount == 0) return true;
 
         for (int y = 0; y < lineCount; y++)
         {
