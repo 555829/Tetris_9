@@ -18,17 +18,13 @@ public class PlacementFinder
 
     public PieceInfo[] getAvailablePlacements(Board board, PieceInfo piece)
     {
-            List<PieceInfo> placements = new ArrayList<>();
+        List<PieceInfo> placements = new ArrayList<>();
+        for (RotationState rotation : RotationState.values())
+        {
+            TetrominoShape shape = new TetrominoShape(piece.tetromino, rotation);
 
-            for (RotationState rotation : RotationState.values())
-            {
-                TetrominoShape shape = new TetrominoShape(piece.tetromino, rotation);
-
-                int minX = -(TetrominoShape.SIZE - 1);
-            int maxX = board.getWidth() - 1;
-
-            int minY = -(TetrominoShape.SIZE - 1);
-            int maxY = board.getHeight() - 1;
+            int minX = -(TetrominoShape.SIZE - 1); int maxX = board.getWidth() - 1;
+            int minY = -(TetrominoShape.SIZE - 1); int maxY = board.getHeight() - 1;
 
             for (int y = minY; y <= maxY; y++)
             {
@@ -38,7 +34,6 @@ public class PlacementFinder
                         continue;
                     if (board.canPlace(shape, x, y + 1))
                         continue;
-
                     PieceInfo placement = new PieceInfo();
                     placement.tetromino = piece.tetromino;
                     placement.rotation = rotation;
@@ -47,7 +42,6 @@ public class PlacementFinder
 
                     if (pathGenerator.getPath(board, piece, placement) == null)
                         continue;
-
                     placements.add(placement);
                 }
             }

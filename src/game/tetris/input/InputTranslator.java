@@ -7,19 +7,19 @@ public class InputTranslator {
     private final IInputSource inputSource;
     private final TetrisFlow flow;
     private final SettingsManager settings;
-    private InputData curInputData = new InputData();
-    private InputData preInputData = new InputData();
+        private InputData curInputData = new InputData();
+        private InputData preInputData = new InputData();
 
     public InputTranslator(InputSourceType type, TetrisFlow flow)
-    {
-        this(type, flow, null);
-    }
+        {
+            this(type, flow, null);
+        }
 
     public InputTranslator(InputSourceType type, TetrisFlow flow, SettingsManager settings)
-    {
-        this.flow = flow;
-        this.settings = settings;
-        inputSource = createInputSource(type);
+        {
+            this.flow = flow;
+            this.settings = settings;
+            inputSource = createInputSource(type);
     }
 
     // 입력 종류마다 실제 키보드, AI 또는 원격 보드 입력 공급자를 연결합니다.

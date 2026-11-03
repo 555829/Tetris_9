@@ -2,11 +2,11 @@ package game.ui.multigame;
 
 import game.NetworkManager;
 import game.SettingsManager;
-import game.ui.multigame.engine.Tetris;
-import game.ui.multigame.engine.board.BoardSnapshotCodec;
-import game.ui.multigame.engine.input.InputSourceType;
-import game.ui.multigame.engine.tetrominoQueue.PieceGenerator_7Bag;
-import game.ui.multigame.engine.tetrominoQueue.TetrominoQueue;
+import game.tetris.Tetris;
+import game.tetris.board.BoardSnapshotCodec;
+import game.tetris.input.InputSourceType;
+import game.tetris.tetrominoQueue.PieceGenerator_7Bag;
+import game.tetris.tetrominoQueue.TetrominoQueue;
 import game.ui.common.UIUtils;
 import game.ui.common.ResponsiveGridLayout;
 import game.ui.outgame.MultiRoomPanel.SlotType;

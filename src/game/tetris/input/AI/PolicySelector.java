@@ -30,8 +30,7 @@ public class PolicySelector
         int maxHeight = getMaxHeight(board);
         int holeCount = getHoleCount(board);
 
-        double heightRatio =
-                (double) maxHeight / board.getHeight();
+        double heightRatio = (double) maxHeight / board.getHeight();
 
         if (heightRatio >= 0.7 || holeCount >= 5)
             return getDefensivePolicy();

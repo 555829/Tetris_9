@@ -1,6 +1,7 @@
 package game.tetris.input;
 
 import game.tetris.flow.TetrisFlow;
+import game.tetris.input.AI.PieceInfo;
 import game.tetris.input.AI.TetrisAI;
 
 import java.util.ArrayDeque;
@@ -57,10 +58,10 @@ class AIInputSource implements IInputSource
         }
 
         if (moveQueue.isEmpty())
+        {
             requestNewMoveList();
-
-        if (moveQueue.isEmpty())
             return result;
+        }
 
         result.set(moveQueue.poll(), true);
         waitFrames = moveIntervalFrames - 1;
@@ -70,7 +71,7 @@ class AIInputSource implements IInputSource
 
     private void requestNewMoveList()
     {
-        InputEnum[] moveList = ai.getMoveList(flow.getBoard(), flow.getCurrentPieceInfo(), flow.getHoldPiece() );
+        InputEnum[] moveList = ai.getMoveList(flow.getBoard(), flow.getCurrentPieceInfo(), flow.getHoldPieceInfo() );
 
         if (moveList == null)
             return;

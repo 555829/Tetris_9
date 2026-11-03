@@ -3,7 +3,10 @@ package game.tetris.input.AI;
 import game.tetris.board.Board;
 
 public class PlacementEvaluator {
-    public PieceInfo getBestEvaluatedPlacement(Board board, PieceInfo[] availablePlacements, PolicySelector.AIPolicy policy)
+    public PieceInfo getBestEvaluatedPlacement(
+            Board board,
+            PieceInfo[] availablePlacements,
+            PolicySelector.AIPolicy policy)
     {
         float bestScore = Float.NEGATIVE_INFINITY;
         PieceInfo bestPieceInfo = null;
@@ -19,7 +22,9 @@ public class PlacementEvaluator {
         return bestPieceInfo;
     }
 
-    private int getScore(Board board, PieceInfo availablePlacement, PolicySelector.AIPolicy policy)
+    private int getScore(Board board,
+                         PieceInfo availablePlacement,
+                         PolicySelector.AIPolicy policy)
     {
         SimulatedBoard result = new SimulatedBoard(board, availablePlacement);
 

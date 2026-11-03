@@ -1,9 +1,9 @@
 package game.ui.multigame;
 
 import game.ui.common.UIUtils;
-import game.ui.multigame.engine.Tetris;
-import game.ui.multigame.engine.tetromino.TetrominoEnum;
-import game.ui.multigame.engine.tetromino.TetrominoShape;
+import game.tetris.Tetris;
+import game.tetris.tetromino.TetrominoEnum;
+import game.tetris.tetromino.TetrominoShape;
 
 import javax.swing.JPanel;
 import java.awt.Color;

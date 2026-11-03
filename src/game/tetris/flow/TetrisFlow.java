@@ -255,11 +255,8 @@ public final class TetrisFlow
         if (!isPlaying() || holdUsed)
             return false;
 
-        TetrominoEnum previous =
-                activePiece.getShape().getType();
-
+        TetrominoEnum previous = activePiece.getShape().getType();
         activePiece.clear();
-
         TetrominoEnum replacement;
 
         if (holdPiece == TetrominoEnum.NoShape)
@@ -274,9 +271,7 @@ public final class TetrisFlow
         }
 
         holdUsed = true;
-
         spawnPiece(replacement);
-
         return true;
     }
 
@@ -548,6 +543,11 @@ public final class TetrisFlow
         return result;
     }
 
+    public Board getBoard()
+    {
+        return board;
+    }
+
     public TetrominoEnum getHoldPiece()
     {
         return holdPiece == TetrominoEnum.NoShape
@@ -555,10 +555,6 @@ public final class TetrisFlow
                 : holdPiece;
     }
 
-    public Board getBoard()
-    {
-        return board;
-    }
 
     public PieceInfo getCurrentPieceInfo()
     {
@@ -567,6 +563,19 @@ public final class TetrisFlow
 
         return new PieceInfo(
                 activePiece.getShape().getType(),
+                activePiece.getShape().getRotation(),
+                activePiece.getX(),
+                activePiece.getY()
+        );
+    }
+    public PieceInfo getHoldPieceInfo()
+    {
+        TetrominoEnum holdPieceTetrominoEnum = holdPiece == TetrominoEnum.NoShape
+                ? queue.peekNextTetromino()
+                : holdPiece;
+
+        return new PieceInfo(
+                holdPieceTetrominoEnum,
                 activePiece.getShape().getRotation(),
                 activePiece.getX(),
                 activePiece.getY()

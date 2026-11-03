@@ -21,72 +21,44 @@ public class PlacementPathGenerator
     }
     public InputEnum[] getPath(Board board, PieceInfo curPiece, PieceInfo target)
     {
-        Queue<PathNode> queue = new ArrayDeque<>();
-        Set<StateKey> visited = new HashSet<>();
+            Queue<PathNode> queue = new ArrayDeque<>();
+            Set<StateKey> visited = new HashSet<>();
+            PathNode start = new PathNode(copyPiece(curPiece), new ArrayList<>());
 
-        PathNode start = new PathNode(copyPiece(curPiece), new ArrayList<>());
+            queue.add(start);
+            visited.add(new StateKey(curPiece));
 
-        queue.add(start);
-        visited.add(new StateKey(curPiece));
-
-        while (!queue.isEmpty())
-        {
-            PathNode current = queue.poll();
-
-            if (isSamePlacement(current.piece, target))
+            while (!queue.isEmpty())
             {
-                return current.path.toArray(new InputEnum[0]);
+                PathNode current = queue.poll();
+
+                if (isSamePlacement(current.piece, target))
+                {
+                    return current.path.toArray(new InputEnum[0]);
+                }
+
+                tryAddMove(board, current, InputEnum.Left, queue, visited);
+                tryAddMove(board, current, InputEnum.Right, queue, visited);
+                tryAddMove(board, current, InputEnum.Rotate, queue, visited);
+                tryAddMove(board, current, InputEnum.OneLineDown, queue, visited);
             }
 
-            tryAddMove(
-                    board,
-                    current,
-                    InputEnum.Left,
-                    queue,
-                    visited
-            );
-
-            tryAddMove(
-                    board,
-                    current,
-                    InputEnum.Right,
-                    queue,
-                    visited
-            );
-
-            tryAddMove(
-                    board,
-                    current,
-                    InputEnum.Rotate,
-                    queue,
-                    visited
-            );
-
-            tryAddMove(
-                    board,
-                    current,
-                    InputEnum.OneLineDown,
-                    queue,
-                    visited
-            );
+            return null;
         }
 
-        return null;
-    }
-
-    private void tryAddMove(
+        private void tryAddMove(
             Board board,
             PathNode current,
             InputEnum input,
             Queue<PathNode> queue,
             Set<StateKey> visited)
-    {
-        PieceInfo nextPiece = copyPiece(current.piece);
+        {
+            PieceInfo nextPiece = copyPiece(current.piece);
 
-        if (!applyInput(board, nextPiece, input))
-            return;
+            if (!applyInput(board, nextPiece, input))
+                return;
 
-        StateKey key = new StateKey(nextPiece);
+            StateKey key = new StateKey(nextPiece);
 
         if (visited.contains(key))
             return;

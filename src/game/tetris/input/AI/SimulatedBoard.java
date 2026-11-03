@@ -180,12 +180,13 @@ public class SimulatedBoard
                 return height - y;
             }
         }
-
         return 0;
     }
 
     public int getClearedLines()
     {
+        if(clearedLines == 4)
+            return 100;
         return clearedLines;
     }
 
