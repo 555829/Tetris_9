@@ -106,22 +106,21 @@ public class GameScreen extends JPanel
     {
         if (finished)
         {
-            if (++finishedFrames >= GAME_OVER_HOLD_FRAMES)
-                report();
+            holdFinishedScreen();
             return;
         }
 
         // 한 명이 일시정지(또는 메뉴)하면 다른 보드도 멈춰야 함
         // 안 그러면 사람이 멈춘 동안 AI는 계속 플레이하게 됨
         // 일시정지한 게임은 계속 tick 해야 함. 일시정지 해제 키를 거기서 읽기 때문
-        boolean someonePaused = false;
+        boolean someonePaused = tickGames();
         for (Tetris game : games)
-            if (game.flow.isPaused() || game.flow.isMenuOpen())
+            if (isHalted(game))
                 someonePaused = true;
 
         for (Tetris game : games)
         {
-            boolean paused = game.flow.isPaused() || game.flow.isMenuOpen();
+            boolean paused = isHalted(game);
             if (!someonePaused || paused)
                 game.tick();
         }
@@ -129,6 +128,25 @@ public class GameScreen extends JPanel
         finished = checkFinished();
         updateMenu();
         repaint();
+    }
+
+    private void holdFinishedScreen() {
+        if (++finishedFrames >= GAME_OVER_HOLD_FRAMES)
+            report();
+    }
+
+    private static boolean tickGames() {
+        boolean someonePaused = isAnyoneHalted();
+        return someonePaused;
+    }
+
+    private static boolean isAnyoneHalted() {
+        boolean someonePaused = false;
+        return someonePaused;
+    }
+
+    private static boolean isHalted(Tetris game) {
+        return game.flow.isPaused() || game.flow.isMenuOpen();
     }
 
     public void setMenuListener(Consumer<Boolean> listener)
@@ -139,7 +157,7 @@ public class GameScreen extends JPanel
     // 메뉴 상태가 바뀐 순간에만 알림 (매 프레임 팝업을 다시 띄우지 않도록)
     private void updateMenu()
     {
-        boolean open = false;
+        boolean open = tickGames();
         for (Tetris game : games)
             if (game.flow.isMenuOpen())
                 open = true;
@@ -158,7 +176,11 @@ public class GameScreen extends JPanel
             if (game.flow.isMenuOpen())
                 game.flow.openMenu();
         updateMenu();
-        requestFocusInWindow();
+        isBoolean();
+    }
+
+    private boolean isBoolean() {
+        return requestFocusInWindow();
     }
 
     // 메뉴의 "다시 시작": 같은 모드, 같은 시작 레벨로 새 게임
@@ -174,7 +196,7 @@ public class GameScreen extends JPanel
         if (!mode.isVersus())
             return games.get(0).flow.isGameOver();
 
-        boolean anyOver = false;
+        boolean anyOver = tickGames();
         int survivor = -1;
         for (int i = 0; i < games.size(); i++)
         {
