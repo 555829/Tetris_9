@@ -113,17 +113,7 @@ public class GameScreen extends JPanel
         // 한 명이 일시정지(또는 메뉴)하면 다른 보드도 멈춰야 함
         // 안 그러면 사람이 멈춘 동안 AI는 계속 플레이하게 됨
         // 일시정지한 게임은 계속 tick 해야 함. 일시정지 해제 키를 거기서 읽기 때문
-        boolean someonePaused = tickGames();
-        for (Tetris game : games)
-            if (isHalted(game))
-                someonePaused = true;
-
-        for (Tetris game : games)
-        {
-            boolean paused = isHalted(game);
-            if (!someonePaused || paused)
-                game.tick();
-        }
+        tickGames();
 
         finished = checkFinished();
         updateMenu();
@@ -135,13 +125,22 @@ public class GameScreen extends JPanel
             report();
     }
 
-    private static boolean tickGames() {
+    private void tickGames() {
         boolean someonePaused = isAnyoneHalted();
-        return someonePaused;
+
+        for (Tetris game : games)
+        {
+            boolean paused = isHalted(game);
+            if (!someonePaused || paused)
+                game.tick();
+        }
     }
 
-    private static boolean isAnyoneHalted() {
+    private boolean isAnyoneHalted() {
         boolean someonePaused = false;
+        for (Tetris game : games)
+            if (isHalted(game))
+                someonePaused = true;
         return someonePaused;
     }
 
@@ -157,7 +156,7 @@ public class GameScreen extends JPanel
     // 메뉴 상태가 바뀐 순간에만 알림 (매 프레임 팝업을 다시 띄우지 않도록)
     private void updateMenu()
     {
-        boolean open = tickGames();
+        boolean open = false;
         for (Tetris game : games)
             if (game.flow.isMenuOpen())
                 open = true;
@@ -176,11 +175,7 @@ public class GameScreen extends JPanel
             if (game.flow.isMenuOpen())
                 game.flow.openMenu();
         updateMenu();
-        isBoolean();
-    }
-
-    private boolean isBoolean() {
-        return requestFocusInWindow();
+        requestFocusInWindow();
     }
 
     // 메뉴의 "다시 시작": 같은 모드, 같은 시작 레벨로 새 게임
@@ -196,7 +191,7 @@ public class GameScreen extends JPanel
         if (!mode.isVersus())
             return games.get(0).flow.isGameOver();
 
-        boolean anyOver = tickGames();
+        boolean anyOver = false;
         int survivor = -1;
         for (int i = 0; i < games.size(); i++)
         {
