@@ -117,7 +117,8 @@ public class GameScreen extends JPanel
         repaint();
     }
 
-    private void holdFinishedScreen() {
+    private void holdFinishedScreen()
+    {
         if (++finishedFrames >= GAME_OVER_HOLD_FRAMES)
             report();
     }
