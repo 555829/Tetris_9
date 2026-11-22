@@ -110,9 +110,6 @@ public class GameScreen extends JPanel
             return;
         }
 
-        // 한 명이 일시정지(또는 메뉴)하면 다른 보드도 멈춰야 함
-        // 안 그러면 사람이 멈춘 동안 AI는 계속 플레이하게 됨
-        // 일시정지한 게임은 계속 tick 해야 함. 일시정지 해제 키를 거기서 읽기 때문
         tickGames();
 
         finished = checkFinished();
@@ -125,7 +122,11 @@ public class GameScreen extends JPanel
             report();
     }
 
-    private void tickGames() {
+    // 한 명이 일시정지(또는 메뉴)하면 다른 보드도 멈춰야 함
+    // 안 그러면 사람이 멈춘 동안 AI는 계속 플레이하게 됨
+    // 일시정지한 게임은 계속 tick 해야 함. 일시정지 해제 키를 거기서 읽기 때문
+    private void tickGames()
+    {
         boolean someonePaused = isAnyoneHalted();
 
         for (Tetris game : games)
@@ -136,15 +137,16 @@ public class GameScreen extends JPanel
         }
     }
 
-    private boolean isAnyoneHalted() {
-        boolean someonePaused = false;
+    private boolean isAnyoneHalted()
+    {
         for (Tetris game : games)
             if (isHalted(game))
-                someonePaused = true;
-        return someonePaused;
+                return true;
+        return false;
     }
 
-    private static boolean isHalted(Tetris game) {
+    private static boolean isHalted(Tetris game)
+    {
         return game.flow.isPaused() || game.flow.isMenuOpen();
     }
 
