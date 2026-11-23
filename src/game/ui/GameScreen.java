@@ -148,7 +148,7 @@ public class GameScreen extends JPanel
 
     private static boolean isHalted(Tetris game)
     {
-        return game.flow.isPaused() || game.flow.isMenuOpen();
+        return game.isPaused() || game.isMenuOpen();
     }
 
     public void setMenuListener(Consumer<Boolean> listener)
@@ -161,7 +161,7 @@ public class GameScreen extends JPanel
     {
         boolean open = false;
         for (Tetris game : games)
-            if (game.flow.isMenuOpen())
+            if (game.isMenuOpen())
                 open = true;
 
         if (open != menuShown)
@@ -175,8 +175,8 @@ public class GameScreen extends JPanel
     public void closeMenu()
     {
         for (Tetris game : games)
-            if (game.flow.isMenuOpen())
-                game.flow.openMenu();
+            if (game.isMenuOpen())
+                game.openMenu();
         updateMenu();
         requestFocusInWindow();
     }
@@ -192,13 +192,13 @@ public class GameScreen extends JPanel
     private boolean checkFinished()
     {
         if (!mode.isVersus())
-            return games.get(0).flow.isGameOver();
+            return games.get(0).isGameOver();
 
         boolean anyOver = false;
         int survivor = -1;
         for (int i = 0; i < games.size(); i++)
         {
-            if (games.get(i).flow.isGameOver())
+            if (games.get(i).isGameOver())
                 anyOver = true;
             else if (survivor == -1)
                 survivor = i;
@@ -214,7 +214,7 @@ public class GameScreen extends JPanel
     {
         Tetris player1 = games.get(0);
         GameResult result = new GameResult(mode, winner,
-                player1.flow.getScore(), player1.flow.getLevel(), player1.flow.getLines());
+                player1.getScore(), player1.getLevel(), player1.getLines());
 
         stop();
         onFinished.accept(result);

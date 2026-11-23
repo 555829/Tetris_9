@@ -9,7 +9,7 @@ import java.awt.*;
 //======================================================================================================================
 // 로그인이랑 회원가입 팝업을 담당하는 코드
 //======================================================================================================================
-public class AuthPopup extends JPanel {
+public class AuthPopup extends JPanel implements IPopup {
     private MainFrame mainFrame;
     private JPanel popupBox;
     private CardLayout cardLayout = new CardLayout();

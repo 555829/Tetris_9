@@ -1,9 +1,6 @@
 package game.ui.multigame;
 
 import game.tetris.Tetris;
-import game.tetris.board.ActivePiece;
-import game.tetris.board.Board;
-import game.tetris.flow.TetrisFlow;
 import game.tetris.tetromino.TetrominoEnum;
 import game.tetris.tetromino.TetrominoShape;
 import game.ui.common.UIUtils;
@@ -48,8 +45,8 @@ public class MultiGameResult extends JPanel {
     // 1. 로컬 플레이어 / 봇 전용 생성자
     public MultiGameResult(Tetris game) {
         this.game = game;
-        int width = (game != null) ? game.board.getWidth() : 10;
-        int height = (game != null) ? game.board.getHeight() : 20;
+        int width = (game != null) ? game.getWidth() : 10;
+        int height = (game != null) ? game.getHeight() : 20;
 
         setPreferredSize(sizeFor(width, height));
         setBackground(BACKGROUND);
@@ -105,8 +102,8 @@ public class MultiGameResult extends JPanel {
         int boardX = SIDE_WIDTH;
         int boardY = MARGIN;
 
-        int boardW = (game != null) ? game.board.getWidth() : 10;
-        int boardH = (game != null) ? game.board.getHeight() : 20;
+        int boardW = (game != null) ? game.getWidth() : 10;
+        int boardH = (game != null) ? game.getHeight() : 20;
 
         drawBoard(g, boardX, boardY, boardW, boardH);
         drawHold(g, MARGIN, boardY);
@@ -126,15 +123,12 @@ public class MultiGameResult extends JPanel {
 
         // 2. 블록 그리기
         if (game != null) {
-            // [로컬 모드] 실시간 Tetris 객체 참조
-            Board board = game.board;
-            ActivePiece piece = game.activePiece;
 
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    TetrominoEnum cell = piece.getCell(x, y);
+                    TetrominoEnum cell = game.getBoardCell(x, y);
                     if (cell == TetrominoEnum.NoShape) {
-                        cell = board.getCell(x, y);
+                        cell = game.getBoardCell(x, y);
                     }
                     if (cell != TetrominoEnum.NoShape) {
                         drawCell(g, originX + x * CELL, originY + y * CELL, CELL, cell);
@@ -157,16 +151,16 @@ public class MultiGameResult extends JPanel {
 
     private void drawHold(Graphics2D g, int x, int y) {
         drawLabel(g, "홀드", x, y);
-        if (game != null && game.flow != null) {
-            drawPreview(g, game.flow.getHoldPiece(), x, y + 10);
+        if (game != null) {
+            drawPreview(g, game.getHoldPiece(), x, y + 10);
         }
     }
 
     private void drawNext(Graphics2D g, int x, int y) {
         drawLabel(g, "다음", x, y);
 
-        if (game != null && game.queue != null) {
-            TetrominoEnum[] queue = game.queue.getQueue();
+        if (game != null) {
+            TetrominoEnum[] queue = game.getNextPieces();
             for (int i = 0; i < queue.length; i++) {
                 drawPreview(g, queue[i], x, y + 10 + i * (PREVIEW_CELL * 3 + 8));
             }
@@ -174,9 +168,9 @@ public class MultiGameResult extends JPanel {
     }
 
     private void drawStats(Graphics2D g, int x, int y) {
-        int score = (game != null) ? game.flow.getScore() : remoteScore;
-        int level = (game != null) ? game.flow.getLevel() : remoteLevel;
-        int lines = (game != null) ? game.flow.getLines() : remoteLines;
+        int score = (game != null) ? game.getScore() : remoteScore;
+        int level = (game != null) ? game.getLevel() : remoteLevel;
+        int lines = (game != null) ? game.getLines() : remoteLines;
 
         g.setColor(TEXT);
         g.setFont(UIUtils.getFont(Font.BOLD, 13f));
@@ -205,10 +199,9 @@ public class MultiGameResult extends JPanel {
         String message = null;
 
         if (game != null) {
-            TetrisFlow flow = game.flow;
-            if (flow.isGameOver()) message = "게임 오버";
-            else if (flow.isMenuOpen()) message = "메뉴";
-            else if (flow.isPaused()) message = "일시정지";
+            if (game.isGameOver()) message = "게임 오버";
+            else if (game.isMenuOpen()) message = "메뉴";
+            else if (game.isPaused()) message = "일시정지";
         } else {
             if (isRemoteGameOver) message = "게임 오버";
         }

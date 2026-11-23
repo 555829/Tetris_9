@@ -1,10 +1,12 @@
 package game.tetris;
 
 import game.SettingsManager;
+import game.tetris.flow.KickedPiece;
 import game.tetris.flow.TetrisFlow;
 import game.tetris.input.InputHandler;
 import game.tetris.input.InputSourceType;
 import game.tetris.input.InputTranslator;
+import game.tetris.tetromino.TetrominoEnum;
 import game.tetris.tetrominoQueue.TetrominoQueue;
 import game.tetris.board.*;
 import game.tetris.timer.*;
@@ -16,11 +18,8 @@ import game.tetris.timer.*;
 /**
  * 테트리스 한 판의 보드, 점수, 조각 흐름과 입력 처리를 묶어 관리합니다.
  */
-public class Tetris {
-    public Tetris(InputSourceType input, TetrominoQueue queue)
-    {
-        this(input, queue, 1);
-    }
+public class Tetris implements ITetrisReader
+{
     // 게임의 논리 시간(프레임) 관리
     private final timerClass timer = new timerClass();
 
@@ -28,22 +27,22 @@ public class Tetris {
     public final timerReader Timer = timer;
 
     // 실제 또는 가상 입력을 InputKey로 변환하고 입력 상태를 관리
-    public final InputTranslator input;
+    private final InputTranslator input;
 
     // 블록 생성 방식에 따라 다음 테트로미노들을 공급 및 보관
-    public final TetrominoQueue queue;
+    private final TetrominoQueue queue;
 
     // 고정된 블록의 배치, 충돌 검사 및 라인 제거 담당
-    public final Board board;
+    private final Board board;
 
     // 현재 조작 중인 블록의 위치, 이동 및 회전 담당
-    public final ActivePiece activePiece;
+    private final ActivePiece activePiece;
 
     // 입력을 게임 내 동작으로 변환. DAS/ARR 등의 조작 규칙 처리
-    public final InputHandler inputHandler;
+    private final InputHandler inputHandler;
 
     // 게임 진행 규칙 관리. 중력, HOLD, 점수, 게임 상태 등 처리
-    public final TetrisFlow flow;
+    private final TetrisFlow flow;
 
     public Tetris(InputSourceType inputSource, TetrominoQueue queue, int startLevel)
     {
@@ -91,4 +90,100 @@ public class Tetris {
     {
         input.close();
     }
+    public void markGameOver() { flow.markGameOver(); }
+    public void setSystemControlsEnabled(boolean enabled){flow.setSystemControlsEnabled(enabled);}
+    public boolean applyBoardSnapshot(String snapshot)
+    {
+        if (snapshot == null || snapshot.length() != board.getWidth() * board.getHeight()) return false;
+
+        int shapeCount = TetrominoEnum.values().length;
+        for (int i = 0; i < snapshot.length(); i++) {
+            int shapeIndex = snapshot.charAt(i) - 'A';
+            if (shapeIndex < 0 || shapeIndex >= shapeCount) return false;
+        }
+
+        activePiece.clear();
+        return board.replaceFromSnapshot(snapshot);
+    }
+    public void openMenu(){flow.openMenu();}
+
+    // ITetrisViewer
+    @Override
+    public int getWidth() {
+        return board.getWidth();
+    }
+
+    @Override
+    public int getHeight() {
+        return board.getHeight();
+    }
+
+    @Override
+    public TetrominoEnum getBoardCell(int x, int y) {
+        return board.getCell(x, y);
+    }
+    @Override
+    public TetrominoEnum getActivePieceCell(int x, int y)
+    {
+        return activePiece.getCell(x, y);
+    }
+
+    @Override
+    public TetrominoEnum getHoldPiece() {
+        return flow.getHoldPiece();
+    }
+
+    @Override
+    public TetrominoEnum[] getNextPieces() {
+        return queue.getQueue();
+    }
+
+    @Override
+    public KickedPiece getKickedPiece()
+    {
+        return flow.getKickedPiece();
+    }
+
+    @Override
+    public double getMorphFlashRatio()
+    {
+        return flow.getMorphFlashRatio();
+    }
+    @Override
+    public boolean hasActivePiece()
+    {
+        return activePiece.hasPiece();
+    }
+
+    @Override
+    public int getScore() {
+        return flow.getScore();
+    }
+
+    @Override
+    public int getLevel() {
+        return flow.getLevel();
+    }
+
+    @Override
+    public int getLines() {
+        return flow.getLines();
+    }
+
+    @Override
+    public boolean isGameOver() {
+        return flow.isGameOver();
+    }
+
+    @Override
+    public boolean isMenuOpen() {
+        return flow.isMenuOpen();
+    }
+
+    @Override
+    public boolean isPaused() {
+        return flow.isPaused();
+    }
+
+
 }

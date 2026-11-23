@@ -1,5 +1,7 @@
 package game.tetris.board;
 
+import game.tetris.ITetrisReader;
+import game.tetris.Tetris;
 import game.tetris.tetromino.TetrominoEnum;
 
 //======================================================================================================================
@@ -9,38 +11,23 @@ public final class BoardSnapshotCodec {
     private BoardSnapshotCodec() {
     }
 
-    public static String encode(Board board, ActivePiece activePiece) {
-        int width = board.getWidth();
-        int height = board.getHeight();
+    public static String encode(ITetrisReader tetris) {
+        int width = tetris.getWidth();
+        int height = tetris.getHeight();
         StringBuilder snapshot = new StringBuilder(width * height);
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                TetrominoEnum cell = activePiece.hasPiece()
-                        ? activePiece.getCell(x, y)
+                TetrominoEnum cell = tetris.hasActivePiece()
+                        ? tetris.getActivePieceCell(x, y)
                         : TetrominoEnum.NoShape;
-                if (cell == TetrominoEnum.NoShape) cell = board.getCell(x, y);
+                if (cell == TetrominoEnum.NoShape) cell = tetris.getBoardCell(x, y);
                 snapshot.append((char) ('A' + cell.ordinal()));
             }
         }
         return snapshot.toString();
     }
-
-    public static boolean apply(Board board, ActivePiece activePiece, String snapshot) {
-        if (!isValid(board, snapshot)) return false;
-
-        activePiece.clear();
-        return board.replaceFromSnapshot(snapshot);
-    }
-
-    private static boolean isValid(Board board, String snapshot) {
-        if (snapshot == null || snapshot.length() != board.getWidth() * board.getHeight()) return false;
-
-        int shapeCount = TetrominoEnum.values().length;
-        for (int i = 0; i < snapshot.length(); i++) {
-            int shapeIndex = snapshot.charAt(i) - 'A';
-            if (shapeIndex < 0 || shapeIndex >= shapeCount) return false;
-        }
-        return true;
+    public static boolean apply(Tetris tetris, String snapshot) {
+        return tetris.applyBoardSnapshot(snapshot);
     }
 }

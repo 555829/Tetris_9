@@ -191,7 +191,7 @@ public class MultiGameScreen extends JPanel {
             }
 
             Tetris game = new Tetris(inputType, new TetrominoQueue(new PieceGenerator_7Bag()), level, settings);
-            game.flow.setSystemControlsEnabled(false);
+            game.setSystemControlsEnabled(false);
             allGames.put(i, game);
 
             if (i == mySlotIndex || (isHost && slots[i] == SlotType.BOT)) {
@@ -236,7 +236,7 @@ public class MultiGameScreen extends JPanel {
                                 updateStandings();
                             }
                             Tetris game = allGames.get(slot);
-                            if (game != null) game.flow.markGameOver();
+                            if (game != null) game.markGameOver();
                         }
                     } catch (Exception ignored) {}
                 }
@@ -263,7 +263,7 @@ public class MultiGameScreen extends JPanel {
                                 && slot != mySlotIndex && (!isHost || slotTypes[slot] != SlotType.BOT)) {
                             Tetris remoteGame = allGames.get(slot);
                             if (remoteGame != null) {
-                                BoardSnapshotCodec.apply(remoteGame.board, remoteGame.activePiece, payload);
+                                BoardSnapshotCodec.apply(remoteGame, payload);
                                 gamePanels.get(slot).repaint();
                             }
                         }
@@ -329,7 +329,7 @@ public class MultiGameScreen extends JPanel {
 
             game.tick();
 
-            int lines = game.flow.getLines();
+            int lines = game.getLines();
             if (lines > lastReportedLines[slot]) {
                 lastReportedLines[slot] = lines;
             }
@@ -338,8 +338,8 @@ public class MultiGameScreen extends JPanel {
                 sendBoardSync(slot, game);
             }
             if (statsSyncTick % 15 == 0) {
-                int score = game.flow.getScore();
-                int currentLines = game.flow.getLines();
+                int score = game.getScore();
+                int currentLines = game.getLines();
                 reportedScores[slot] = score;
                 reportedLines[slot] = currentLines;
                 updateStandings();
@@ -347,20 +347,20 @@ public class MultiGameScreen extends JPanel {
                         score, currentLines);
             }
 
-            if (game.flow.isGameOver()) {
+            if (game.isGameOver()) {
                 if (!isGameOver[slot]) {
                     isGameOver[slot] = true;
                     eliminationOrder[slot] = ++eliminationCounter;
                     updateStandings();
                 }
                 NetworkManager.getInstance().reportGameOver(slot,
-                        game.flow.getScore(), game.flow.getLines());
+                        game.getScore(), game.getLines());
             } else if (mode == MultiGameMode.CLASSIC_40 && lines >= mode.getTargetLines()
                     && !winnerRequestSent) {
                 winnerRequestSent = true;
                 waitingForServerResult = true;
                 finished = true;
-                NetworkManager.getInstance().reportMatchWin(slot, game.flow.getScore(), lines);
+                NetworkManager.getInstance().reportMatchWin(slot, game.getScore(), lines);
             }
         }
 
@@ -372,7 +372,7 @@ public class MultiGameScreen extends JPanel {
 
     // 내 보드의 고정된 블록과 떨어지는 블록 정보를 조합하여 문자열로 압축 발송
     private void sendBoardSync(int slot, Tetris game) {
-        String snapshot = BoardSnapshotCodec.encode(game.board, game.activePiece);
+        String snapshot = BoardSnapshotCodec.encode(game);
         NetworkManager.getInstance().sendBoardSync(slot, snapshot);
     }
 
@@ -397,7 +397,7 @@ public class MultiGameScreen extends JPanel {
 
     private void sendTimeResult(int slot, Tetris game) {
         NetworkManager.getInstance().reportTimeResult(slot,
-                game.flow.getScore(), game.flow.getLines());
+                game.getScore(), game.getLines());
     }
 
     private void reportResult() {
@@ -560,7 +560,7 @@ public class MultiGameScreen extends JPanel {
             Tetris game = entry.getValue();
             if (!isGameOver[slot]) {
                 NetworkManager.getInstance().reportGameOver(slot,
-                        game.flow.getScore(), game.flow.getLines());
+                        game.getScore(), game.getLines());
             }
         }
         NetworkManager.getInstance().leaveRoom();

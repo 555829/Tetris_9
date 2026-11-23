@@ -30,8 +30,6 @@ public class InputTranslator {
                 return new KeyboardInputSource(settings);
             case AI:
                 return new AIInputSource(flow, 5);
-            case Keyboard2:
-                return new RemoteInputSource();
             default:
                 throw new IllegalArgumentException("Invalid InputSourceType");
         }

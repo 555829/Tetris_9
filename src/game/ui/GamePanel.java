@@ -1,9 +1,6 @@
 package game.ui;
 
-import game.tetris.Tetris;
-import game.tetris.board.ActivePiece;
-import game.tetris.board.Board;
-import game.tetris.flow.TetrisFlow;
+import game.tetris.ITetrisReader;
 import game.tetris.tetromino.TetrominoEnum;
 import game.tetris.tetromino.TetrominoShape;
 import game.tetris.flow.KickedPiece;
@@ -45,13 +42,13 @@ public class GamePanel extends JPanel
         COLORS.put(TetrominoEnum.MirroredLShape, new Color(102, 102, 204));
     }
 
-    private final Tetris game;
+    private final ITetrisReader game;
 
-    public GamePanel(Tetris game)
+    public GamePanel(ITetrisReader game)
     {
         this.game = game;
 
-        setPreferredSize(sizeFor(game.board.getWidth(), game.board.getHeight()));
+        setPreferredSize(sizeFor(game.getWidth(), game.getHeight()));
         setBackground(BACKGROUND);
     }
 
@@ -66,14 +63,14 @@ public class GamePanel extends JPanel
     {
         super.paintComponent(g0);
         Graphics2D g = (Graphics2D) g0.create();
-        double scale = Math.min(getWidth() / (double) sizeFor(game.board.getWidth(), game.board.getHeight()).width,
-                getHeight() / (double) sizeFor(game.board.getWidth(), game.board.getHeight()).height);
+        double scale = Math.min(getWidth() / (double) sizeFor(game.getWidth(), game.getHeight()).width,
+                getHeight() / (double) sizeFor(game.getWidth(), game.getHeight()).height);
         if (scale <= 0 || Double.isInfinite(scale) || Double.isNaN(scale)) {
             g.dispose();
             return;
         }
-        int baseWidth = sizeFor(game.board.getWidth(), game.board.getHeight()).width;
-        int baseHeight = sizeFor(game.board.getWidth(), game.board.getHeight()).height;
+        int baseWidth = sizeFor(game.getWidth(), game.getHeight()).width;
+        int baseHeight = sizeFor(game.getWidth(), game.getHeight()).height;
         g.translate((getWidth() - baseWidth * scale) / 2.0, (getHeight() - baseHeight * scale) / 2.0);
         g.scale(scale, scale);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -84,7 +81,7 @@ public class GamePanel extends JPanel
         drawBoard(g, boardX, boardY);
         drawHold(g, MARGIN, boardY);
         drawStats(g, MARGIN, boardY + 140);
-        drawNext(g, boardX + game.board.getWidth() * CELL + MARGIN, boardY);
+        drawNext(g, boardX + game.getWidth() * CELL + MARGIN, boardY);
         drawKicked(g, boardX, boardY);
         drawMorphFlash(g, boardX, boardY);
         drawOverlay(g, boardX, boardY);
@@ -93,22 +90,19 @@ public class GamePanel extends JPanel
 
     private void drawBoard(Graphics2D g, int originX, int originY)
     {
-        Board board = game.board;
-        ActivePiece piece = game.activePiece;
-
         g.setColor(GRID);
-        for (int y = 0; y < board.getHeight(); y++)
-            for (int x = 0; x < board.getWidth(); x++)
+        for (int y = 0; y < game.getHeight(); y++)
+            for (int x = 0; x < game.getWidth(); x++)
                 g.drawRect(originX + x * CELL, originY + y * CELL, CELL, CELL);
 
-        for (int y = 0; y < board.getHeight(); y++)
+        for (int y = 0; y < game.getHeight(); y++)
         {
-            for (int x = 0; x < board.getWidth(); x++)
+            for (int x = 0; x < game.getWidth(); x++)
             {
                 // 떨어지는 블록은 별도 레이어에 있으므로 고정된 블록 위에 덧그려야 함
-                TetrominoEnum cell = piece.getCell(x, y);
+                TetrominoEnum cell = game.getActivePieceCell(x, y);
                 if (cell == TetrominoEnum.NoShape)
-                    cell = board.getCell(x, y);
+                    cell = game.getBoardCell(x, y);
 
                 if (cell != TetrominoEnum.NoShape)
                     drawCell(g, originX + x * CELL, originY + y * CELL, CELL, cell);
@@ -119,7 +113,7 @@ public class GamePanel extends JPanel
     // 차여서 날아가는 블록: 칸에 맞춰 그리지 않고 실제 위치(소수점)에 그려서 부드럽게 움직이게 함
     private void drawKicked(Graphics2D g, int boardX, int boardY)
     {
-        KickedPiece kicked = game.flow.getKickedPiece();
+        KickedPiece kicked = game.getKickedPiece();
         if (kicked == null)
             return;
 
@@ -141,7 +135,7 @@ public class GamePanel extends JPanel
         }
 
         // 남은 시간 막대 + 안내 문구 (보드 맨 위)
-        int boardWidth = game.board.getWidth() * CELL;
+        int boardWidth = game.getWidth() * CELL;
         g.setColor(new Color(0, 0, 0, 140));
         g.fillRect(boardX, boardY, boardWidth, 30);
         g.setColor(KICK);
@@ -156,18 +150,17 @@ public class GamePanel extends JPanel
     // 모양이 바뀐 직후: 블록 위에 흰색을 덮었다가 점점 사라지게 하고, 보드 위에 안내 문구 표시
     private void drawMorphFlash(Graphics2D g, int boardX, int boardY)
     {
-        double ratio = game.flow.getMorphFlashRatio();
+        double ratio = game.getMorphFlashRatio();
         if (ratio <= 0)
             return;
 
-        ActivePiece piece = game.activePiece;
         g.setColor(new Color(255, 255, 255, (int) (200 * ratio)));
-        for (int y = 0; y < piece.getHeight(); y++)
-            for (int x = 0; x < piece.getWidth(); x++)
-                if (piece.getCell(x, y) != TetrominoEnum.NoShape)
+        for (int y = 0; y < game.getHeight(); y++)
+            for (int x = 0; x < game.getWidth(); x++)
+                if (game.getBoardCell(x, y) != TetrominoEnum.NoShape)
                     g.fillRect(boardX + x * CELL, boardY + y * CELL, CELL, CELL);
 
-        int boardWidth = game.board.getWidth() * CELL;
+        int boardWidth = game.getWidth() * CELL;
         g.setColor(new Color(0, 0, 0, 140));
         g.fillRect(boardX, boardY, boardWidth, 30);
 
@@ -181,29 +174,28 @@ public class GamePanel extends JPanel
     private void drawHold(Graphics2D g, int x, int y)
     {
         drawLabel(g, "홀드", x, y);
-        drawPreview(g, game.flow.getHoldPiece(), x, y + 10);
+        drawPreview(g, game.getHoldPiece(), x, y + 10);
     }
 
     private void drawNext(Graphics2D g, int x, int y)
     {
         drawLabel(g, "다음", x, y);
 
-        TetrominoEnum[] queue = game.queue.getQueue();
+        TetrominoEnum[] queue = game.getNextPieces();
         for (int i = 0; i < queue.length; i++)
             drawPreview(g, queue[i], x, y + 10 + i * (PREVIEW_CELL * 3 + 8));
     }
 
     private void drawStats(Graphics2D g, int x, int y)
     {
-        TetrisFlow flow = game.flow;
         g.setColor(TEXT);
         g.setFont(UIUtils.getFont(Font.BOLD, 13f));
         g.drawString("점수", x, y);
-        g.drawString(String.valueOf(flow.getScore()), x, y + 18);
+        g.drawString(String.valueOf(game.getScore()), x, y + 18);
         g.drawString("레벨", x, y + 50);
-        g.drawString(String.valueOf(flow.getLevel()), x, y + 68);
+        g.drawString(String.valueOf(game.getLevel()), x, y + 68);
         g.drawString("줄", x, y + 100);
-        g.drawString(String.valueOf(flow.getLines()), x, y + 118);
+        g.drawString(String.valueOf(game.getLines()), x, y + 118);
     }
 
     private void drawPreview(Graphics2D g, TetrominoEnum type, int x, int y)
@@ -220,19 +212,18 @@ public class GamePanel extends JPanel
 
     private void drawOverlay(Graphics2D g, int boardX, int boardY)
     {
-        TetrisFlow flow = game.flow;
         String message;
-        if (flow.isGameOver())
+        if (game.isGameOver())
             message = "게임 오버";
-        else if (flow.isMenuOpen())
+        else if (game.isMenuOpen())
             message = "";
-        else if (flow.isPaused())
+        else if (game.isPaused())
             message = "일시정지";
         else
             return;
 
-        int w = game.board.getWidth() * CELL;
-        int h = game.board.getHeight() * CELL;
+        int w = game.getWidth() * CELL;
+        int h = game.getHeight() * CELL;
         g.setColor(new Color(0, 0, 0, 160));
         g.fillRect(boardX, boardY, w, h);
 
