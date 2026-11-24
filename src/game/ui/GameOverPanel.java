@@ -19,7 +19,7 @@ public class GameOverPanel extends JPanel
     private static final Color HIGHLIGHT = new Color(218, 170, 0);
     private static final Color BUTTON = new Color(45, 45, 58);
 
-    private final RankingRepository ranking;
+    private final transient RankingRepository ranking;
 
     private final JLabel headlineLabel = label("게임 오버", 32f, ACCENT);
     private final JLabel resultLabel = new JLabel();

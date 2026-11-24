@@ -45,7 +45,7 @@ public class GamePanel extends JPanel
         COLORS.put(TetrominoEnum.MirroredLShape, new Color(102, 102, 204));
     }
 
-    private final Tetris game;
+    private final transient Tetris game;
 
     public GamePanel(Tetris game)
     {

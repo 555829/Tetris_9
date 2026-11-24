@@ -28,8 +28,8 @@ public class GameScreen extends JPanel
     private static final Color BACKGROUND = new Color(24, 24, 32);
     private static final Color TEXT = new Color(230, 230, 235);
 
-    private final Consumer<GameResult> onFinished;
-    private final SettingsManager settings;
+    private final transient Consumer<GameResult> onFinished;
+    private final transient SettingsManager settings;
     private final Timer timer = new Timer(FRAME_MS, e -> tick());
     private final List<Tetris> games = new ArrayList<>();
 
@@ -38,7 +38,7 @@ public class GameScreen extends JPanel
     private boolean finished;
 
     // ESC 메뉴가 열리고 닫힐 때 MainFrame에 알려서 메뉴 팝업을 보이거나 숨기게 함
-    private Consumer<Boolean> menuListener = open -> {};
+    private transient Consumer<Boolean> menuListener = open -> {};
     private boolean menuShown;
     private int winner;
     private int finishedFrames;

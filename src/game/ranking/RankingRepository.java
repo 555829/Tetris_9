@@ -9,10 +9,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.logging.Logger;
 
 // 상위 점수(TOP 10)를 보관하고 탭으로 구분한 텍스트 파일에 저장
 public final class RankingRepository
 {
+    // 파일을 읽거나 쓰지 못해도 게임은 계속되므로, 오류는 로그로만 남김
+    private static final Logger LOG = Logger.getLogger(RankingRepository.class.getName());
+
     public static final int MAX_ENTRIES = 10;
     private static final int MAX_NAME_LENGTH = 12;
     private static final String DEFAULT_NAME = "PLAYER";
@@ -86,7 +90,7 @@ public final class RankingRepository
         }
         catch (IOException e)
         {
-            System.err.println("Could not read ranking file: " + e.getMessage());
+            LOG.warning(() -> "Could not read ranking file: " + e.getMessage());
         }
 
         entries.sort(Comparator.comparingInt(RankingEntry::getScore).reversed());
@@ -114,7 +118,7 @@ public final class RankingRepository
         catch (IOException e)
         {
             // 저장에 실패해도 게임은 멈추지 않음 (랭킹만 저장되지 않음)
-            System.err.println("Could not save ranking file: " + e.getMessage());
+            LOG.warning(() -> "Could not save ranking file: " + e.getMessage());
         }
     }
 

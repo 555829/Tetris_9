@@ -10,10 +10,15 @@ public final class KickedPiece
     private final TetrominoShape shape;
     private final int totalFrames;
 
-    private final int minCol, maxCol, minRow, maxRow;
+    private final int minCol;
+    private final int maxCol;
+    private final int minRow;
+    private final int maxRow;
 
-    private double x, y;
-    private double vx, vy;
+    private double x;
+    private double y;
+    private double vx;
+    private double vy;
     private int framesLeft;
 
     KickedPiece(TetrominoShape shape, int startX, int startY,
@@ -27,7 +32,10 @@ public final class KickedPiece
         this.totalFrames = totalFrames;
         this.framesLeft = totalFrames;
 
-        int left = TetrominoShape.SIZE, right = -1, top = TetrominoShape.SIZE, bottom = -1;
+        int left = TetrominoShape.SIZE;
+        int right = -1;
+        int top = TetrominoShape.SIZE;
+        int bottom = -1;
         for (int sy = 0; sy < TetrominoShape.SIZE; sy++)
         {
             for (int sx = 0; sx < TetrominoShape.SIZE; sx++)
@@ -59,7 +67,7 @@ public final class KickedPiece
         }
         else if (x + maxCol + 1 > boardWidth)
         {
-            x = boardWidth - maxCol - 1;
+            x = (double) boardWidth - maxCol - 1;
             vx = -vx;
         }
 
@@ -70,7 +78,7 @@ public final class KickedPiece
         }
         else if (y + maxRow + 1 > boardHeight)
         {
-            y = boardHeight - maxRow - 1;
+            y = (double) boardHeight - maxRow - 1;
             vy = -vy;
         }
 

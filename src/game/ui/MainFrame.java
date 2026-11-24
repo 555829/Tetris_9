@@ -33,7 +33,7 @@ public class MainFrame extends JFrame {
 
     private static final int MAX_LEVEL = 5;
 
-    private final RankingRepository ranking = RankingRepository.openDefault();
+    private final transient RankingRepository ranking = RankingRepository.openDefault();
     private final MainMenuPanel gameSetupPanel;
     private final GameScreen gameScreen;
     private final GameOverPanel gameOverPanel;

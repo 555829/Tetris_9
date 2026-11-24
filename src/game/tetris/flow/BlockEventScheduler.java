@@ -30,12 +30,14 @@ final class BlockEventScheduler
     void schedule(int level)
     {
         double chance = chanceFor(level);
+        pending = null;
         if (random.nextDouble() < chance)
+        {
             setPending(KICK);
-        else if (random.nextDouble() < chance)
+            return;
+        }
+        if (random.nextDouble() < chance)
             setPending(MORPH);
-        else
-            pending = null;
     }
 
     // 블록이 정해진 줄에 왔으면 이벤트를 꺼내 줌. 한 번 꺼내면 다시 나오지 않음
