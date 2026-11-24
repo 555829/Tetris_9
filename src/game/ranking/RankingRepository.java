@@ -64,9 +64,7 @@ public final class RankingRepository
         while (index < entries.size() && entries.get(index).getScore() >= score)
             index++;
         entries.add(index, entry);
-
-        while (entries.size() > MAX_ENTRIES)
-            entries.remove(entries.size() - 1);
+        trimToMax();
 
         save();
         return index;
@@ -81,7 +79,7 @@ public final class RankingRepository
         {
             for (String line : Files.readAllLines(file, StandardCharsets.UTF_8))
             {
-                RankingEntry entry = parse(line);
+                RankingEntry entry = RankingEntry.fromLine(line);
                 if (entry != null)
                     entries.add(entry);
             }
@@ -92,6 +90,12 @@ public final class RankingRepository
         }
 
         entries.sort(Comparator.comparingInt(RankingEntry::getScore).reversed());
+        trimToMax();
+    }
+
+    // TOP 10 밖으로 밀려난 기록을 버림
+    private void trimToMax()
+    {
         while (entries.size() > MAX_ENTRIES)
             entries.remove(entries.size() - 1);
     }
@@ -100,7 +104,7 @@ public final class RankingRepository
     {
         List<String> lines = new ArrayList<>();
         for (RankingEntry e : entries)
-            lines.add(e.getName() + "\t" + e.getScore() + "\t" + e.getLevel() + "\t" + e.getLines());
+            lines.add(e.toLine());
 
         try
         {
@@ -111,27 +115,6 @@ public final class RankingRepository
         {
             // 저장에 실패해도 게임은 멈추지 않음 (랭킹만 저장되지 않음)
             System.err.println("Could not save ranking file: " + e.getMessage());
-        }
-    }
-
-    // 파일을 직접 고쳤거나 쓰다 만 경우에도 게임이 멈추지 않도록, 형식이 잘못된 줄은 건너뜀
-    private static RankingEntry parse(String line)
-    {
-        String[] parts = line.split("\t");
-        if (parts.length != 4)
-            return null;
-
-        try
-        {
-            return new RankingEntry(
-                    parts[0],
-                    Integer.parseInt(parts[1]),
-                    Integer.parseInt(parts[2]),
-                    Integer.parseInt(parts[3]));
-        }
-        catch (NumberFormatException e)
-        {
-            return null;
         }
     }
 
