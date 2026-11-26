@@ -1,6 +1,7 @@
 package game.ui.outgame.popup;
 
-import game.NetworkManager;
+import Network.NetworkHandler;
+import game.UserProfileState;
 import game.ui.MainFrame;
 import game.ui.common.UIUtils;
 import javax.swing.*;
@@ -19,6 +20,52 @@ public class ShopPopup extends JPanel {
     private final Map<CardSkin, JButton> actionButtons = new EnumMap<>(CardSkin.class);
     private boolean actionPending;
     private boolean awaitingActionRefresh;
+
+    public void onBuyCard(String result)
+    {
+        actionPending = false;
+
+        if ("SUCCESS".equals(result))
+        {
+            awaitingActionRefresh = true;
+            refreshFromNetwork();
+            SwingUtilities.invokeLater(() ->
+                JOptionPane.showMessageDialog(this, "카드를 구매했습니다."));;
+        }
+        else
+        {
+            awaitingActionRefresh = false;
+            refreshFromNetwork();
+            SwingUtilities.invokeLater(() ->
+                JOptionPane.showMessageDialog(this, "카드를 구매했습니다."));;
+        }
+    }
+
+    public void onEquipCard(String result)
+    {
+        actionPending = false;
+
+        if ("SUCCESS".equals(result))
+        {
+            awaitingActionRefresh = true;
+            refreshFromNetwork();
+            SwingUtilities.invokeLater(() ->
+                    JOptionPane.showMessageDialog(this, "프로필 카드를 장착했습니다."));
+        }
+        else
+        {
+            awaitingActionRefresh = false;
+            refreshFromNetwork();
+            SwingUtilities.invokeLater(() ->
+                    JOptionPane.showMessageDialog(this, "카드를 보유하고 있지 않습니다."));
+        }
+    }
+
+    public void onUserInfo()
+    {
+        awaitingActionRefresh = false;
+        refreshFromNetwork();
+    }
 
     // 보통은 이렇게 구매가능한거는 sql에서 테이블 따로 빼놓고 보조키랑 지정해야하는데
     // 귀찮아서 한 준에 다 때려박아서 이렇게 짰습니다. 상점에 구매가능한 아이템도 4개밖에 없어서
@@ -86,60 +133,46 @@ public class ShopPopup extends JPanel {
         gbc.anchor = GridBagConstraints.CENTER;
         add(popupBox, gbc);
 
-        NetworkManager.getInstance().addPacketListener(this::handlePacket);
         refreshFromNetwork();
     }
 
-    //아이템 뭐 있는지 패킷 받아오고 구매, 처리 등등 담당
-    private void handlePacket(String packet) {
-        if (packet == null) return;
-        if (packet.startsWith("RES_USER_INFO|")) {
-            if (awaitingActionRefresh) awaitingActionRefresh = false;
-            refreshFromNetwork();
-        } else if (packet.startsWith("RES_BUY_CARD|SUCCESS|")) {
-            actionPending = false;
-            awaitingActionRefresh = true;
-            refreshFromNetwork();
-            JOptionPane.showMessageDialog(this, "카드를 구매했습니다.");
-        } else if (packet.startsWith("RES_BUY_CARD|FAIL|")) {
-            actionPending = false;
-            awaitingActionRefresh = false;
-            refreshFromNetwork();
-            JOptionPane.showMessageDialog(this, "구매 실패: 잔액이나 카드 정보를 확인하세요.");
-        } else if (packet.startsWith("RES_EQUIP_CARD|SUCCESS|")) {
-            actionPending = false;
-            awaitingActionRefresh = true;
-            refreshFromNetwork();
-            JOptionPane.showMessageDialog(this, "프로필 카드를 장착했습니다.");
-        } else if (packet.startsWith("RES_EQUIP_CARD|FAIL|")) {
-            actionPending = false;
-            awaitingActionRefresh = false;
-            refreshFromNetwork();
-            JOptionPane.showMessageDialog(this, "카드를 보유하고 있지 않습니다.");
-        }
-    }
 
     //구매했으니까 상점 ui 바꿔주는 코드
-    private void refreshFromNetwork() {
-        NetworkManager net = NetworkManager.getInstance();
-        if (userMoneyLabel != null) userMoneyLabel.setText(net.getMoney() + "원");
-        for (CardSkin skin : CardSkin.values()) {
+    private void refreshFromNetwork()
+    {
+        UserProfileState profile = mainFrame.getUserProfile();
+
+        if (userMoneyLabel != null)
+            userMoneyLabel.setText(profile.getMoney() + "원");
+
+        for (CardSkin skin : CardSkin.values())
+        {
             JButton button = actionButtons.get(skin);
-            if (button == null) continue;
-            boolean owned = isOwned(net, skin);
-            boolean equipped = skin.name().equalsIgnoreCase(net.getEquippedSkin());
-            button.setText(equipped ? "장착 중" : owned ? "장착하기" : "구매하기");
-            button.setEnabled(!equipped && !actionPending && !awaitingActionRefresh);
+
+            if (button == null)
+                continue;
+
+            boolean owned = isOwned(profile, skin);
+            boolean equipped =
+                    skin.name().equalsIgnoreCase(profile.getEquippedSkin());
+
+            button.setText(
+                    equipped ? "장착 중" : owned ? "장착하기" : "구매하기");
+
+            button.setEnabled(
+                    !equipped && !actionPending && !awaitingActionRefresh);
         }
     }
 
     //카드를 가지고 있으면 변경으로 바꿔주는 코드
-    private boolean isOwned(NetworkManager net, CardSkin skin) {
-        switch (skin) {
-            case WHITE: return net.hasWhiteCard();
-            case SILVER: return net.hasSilverCard();
-            case GOLD: return net.hasGoldCard();
-            case PLATINUM: return net.hasPlatinumCard();
+    private boolean isOwned(UserProfileState profile, CardSkin skin)
+    {
+        switch (skin)
+        {
+            case WHITE: return profile.hasWhiteCard();
+            case SILVER: return profile.hasSilverCard();
+            case GOLD: return profile.hasGoldCard();
+            case PLATINUM: return profile.hasPlatinumCard();
             default: return false;
         }
     }
@@ -192,18 +225,25 @@ public class ShopPopup extends JPanel {
         return card;
     }
 
-    //이건 ai가 추가한 코드이고 네트워크 연결 안되면 서버접속이 안되긴 하는데 굳이 뺏다가 문제 생기면 머리아프니까 놔둔코드
-    private void handleItemAction(CardSkin skin, JButton btn) {
-        NetworkManager net = NetworkManager.getInstance();
-        if (!net.isConnected) {
+
+    private void handleItemAction(CardSkin skin, JButton btn)
+    {
+        if (!mainFrame.getNetworkConnection().isConnected())
+        {
             JOptionPane.showMessageDialog(this, "서버에 연결한 뒤 이용할 수 있습니다.");
             return;
         }
-        if (actionPending) return;
+
+        if (actionPending)
+            return;
+
         actionPending = true;
         refreshFromNetwork();
-        if (isOwned(net, skin)) net.requestEquipCard(skin.name());
-        else net.requestBuyCard(skin.name());
+
+        if (isOwned(mainFrame.getUserProfile(), skin))
+            NetworkHandler.getInstance().requestEquipCard(skin.name());
+        else
+            NetworkHandler.getInstance().requestBuyCard(skin.name());
     }
 
     @Override

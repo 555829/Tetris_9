@@ -1,6 +1,7 @@
 package game.ui.outgame.popup;
 
-import game.NetworkManager;
+import Network.NetworkConnection;
+import Network.NetworkHandler;
 import game.ui.MainFrame;
 import game.ui.common.UIUtils;
 import javax.swing.*;
@@ -9,7 +10,7 @@ import java.awt.*;
 //======================================================================================================================
 // 로그인이랑 회원가입 팝업을 담당하는 코드
 //======================================================================================================================
-public class AuthPopup extends JPanel implements IPopup {
+public class AuthPopup extends JPanel {
     private MainFrame mainFrame;
     private JPanel popupBox;
     private CardLayout cardLayout = new CardLayout();
@@ -24,6 +25,9 @@ public class AuthPopup extends JPanel implements IPopup {
     public static final String CARD_LOGIN = "LOGIN";
     public static final String CARD_REGISTER = "REGISTER";
 
+    private String pendingId;
+    private String pendingPw;
+    private boolean pendingLogin;
     //==================================================================================================================
     // 로그인/회원가입 창 띄워주는 코드
     //==================================================================================================================
@@ -44,47 +48,6 @@ public class AuthPopup extends JPanel implements IPopup {
         cardsPanel.add(createLoginCard(), CARD_LOGIN);
         cardsPanel.add(createRegisterCard(), CARD_REGISTER);
         popupBox.add(cardsPanel, BorderLayout.CENTER);
-
-        NetworkManager.getInstance().addPacketListener(this::onPacketReceived);
-    }
-
-    //==================================================================================================================
-    // 패킷처리
-    //==================================================================================================================
-    private void onPacketReceived(String packet) {
-        String[] tokens = packet.split("\\|", -1);
-        if (tokens.length < 2) return;
-        String cmd = tokens[0];
-
-        // 1. 로그인 응답 처리
-        if ("RES_LOGIN".equals(cmd)) {
-            String result = tokens[1];
-
-            if ("SUCCESS".equals(result)) {
-                showLoginStatus(" ", Color.WHITE);
-
-                // 팝업 닫기 및 MultiLobbyPanel로 이동!
-                mainFrame.hideAuthPopup();
-                mainFrame.showScreen(MainFrame.TAG_MULTI_LOBBY);
-            } else {
-                String failReason = tokens.length > 2 ? tokens[2] : "로그인 정보가 올바르지 않습니다.";
-                showLoginStatus(failReason, new Color(255, 120, 120));
-            }
-        }
-        // 2. 회원가입 응답 처리
-        else if ("RES_REGISTER".equals(cmd)) {
-            String result = tokens[1];
-
-            if ("SUCCESS".equals(result)) {
-                showRegStatus("회원가입에 성공했습니다!", Color.CYAN);
-                resetRegisterForm();
-                cardLayout.show(cardsPanel, CARD_LOGIN); // 로그인 화면으로 이동
-                showLoginStatus("회원가입 성공! 로그인해 주세요.", Color.CYAN);
-            } else {
-                String failReason = tokens.length > 2 ? tokens[2] : "회원가입에 실패했습니다.";
-                showRegStatus(failReason, new Color(255, 120, 120));
-            }
-        }
     }
 
     //==================================================================================================================
@@ -153,7 +116,6 @@ public class AuthPopup extends JPanel implements IPopup {
     private void handleLogin() {
         String id = loginIdField.getText().trim();
         String pw = new String(loginPwField.getPassword());
-        NetworkManager net = NetworkManager.getInstance();
         Color errorColor = new Color(255, 120, 120);
 
         if (id.isEmpty()) {
@@ -167,22 +129,7 @@ public class AuthPopup extends JPanel implements IPopup {
             showLoginStatus("아이디와 비밀번호는 구분자 없이 지정 길이 이내로 입력해 주세요.", errorColor);
             return;
         }
-
-        showLoginStatus("서버에 연결하는 중", Color.CYAN);
-
-        // 이걸 하면 ui 처리하는 부분과 로그인하는 쪽의 스레드를 나눠서 ui가 멈추지 않음
-        new Thread(() -> {
-            if (!net.isConnected) {
-                boolean connected = net.connect(NetworkManager.SERVER_HOST, NetworkManager.SERVER_PORT);
-                if (!connected) {
-                    SwingUtilities.invokeLater(() -> showLoginStatus("서버에 연결할 수 없습니다.", errorColor));
-                    return;
-                }
-            }
-
-            SwingUtilities.invokeLater(() -> showLoginStatus("로그인 요청 중...", Color.WHITE));
-            net.requestLogin(id, pw);
-        }).start();
+        requestAuth(true, id, pw);
     }
 
     //==================================================================================================================
@@ -258,7 +205,6 @@ public class AuthPopup extends JPanel implements IPopup {
         String id = regIdField.getText().trim();
         String pw = new String(regPwField.getPassword());
         String pwConfirm = new String(regPwConfirmField.getPassword());
-        NetworkManager net = NetworkManager.getInstance();
         Color errorColor = new Color(255, 120, 120);
 
         if (id.isEmpty()) {
@@ -277,28 +223,72 @@ public class AuthPopup extends JPanel implements IPopup {
             showRegStatus("비밀번호가 일치하지 않습니다.", errorColor);
             return;
         }
-
-        showRegStatus("서버에 연결하는 중", Color.CYAN);
-
-        new Thread(() -> {
-            if (!net.isConnected) {
-                boolean connected = net.connect(NetworkManager.SERVER_HOST, NetworkManager.SERVER_PORT);
-                if (!connected) {
-                    SwingUtilities.invokeLater(() -> showRegStatus("서버에 연결할 수 없습니다.", errorColor));
-                    return;
-                }
-            }
-
-            SwingUtilities.invokeLater(() -> showRegStatus("회원가입 요청 중", Color.WHITE));
-            net.requestRegister(id, pw, id);
-            //닉네임 따로 받는거 깜빡했는데 수정하기 귀찮아서 그냥 id가 닉네임... 로비안에 들어가서 프로필 버튼 누르면
-            //수정할수 있습니다
-        }).start();
+        requestAuth(false, id, pw);
     }
 
     //==================================================================================================================
     // 필요한 부품들
     //==================================================================================================================
+    private void requestAuth(boolean login, String id, String pw)
+    {
+        if (pendingId != null)
+            return;
+
+        pendingLogin = login;
+        pendingId = id;
+        pendingPw = pw;
+
+        if (login)
+            showLoginStatus("서버에 연결하는 중", Color.CYAN);
+        else
+            showRegStatus("서버에 연결하는 중", Color.CYAN);
+
+        NetworkConnection network = mainFrame.getNetworkConnection();
+
+        if (!network.isConnected() && !network.isConnecting())
+            mainFrame.connectServer();
+    }
+
+    public void tickConnection()
+    {
+        if (pendingId == null)
+            return;
+
+        NetworkConnection network = mainFrame.getNetworkConnection();
+
+        if (network.isConnecting())
+            return;
+
+        String id = pendingId;
+        String pw = pendingPw;
+
+        pendingId = null;
+        pendingPw = null;
+
+        if (!network.isConnected())
+        {
+            Color errorColor = new Color(255, 120, 120);
+
+            if (pendingLogin)
+                showLoginStatus("서버에 연결할 수 없습니다.", errorColor);
+            else
+                showRegStatus("서버에 연결할 수 없습니다.", errorColor);
+
+            return;
+        }
+
+        if (pendingLogin)
+        {
+            showLoginStatus("로그인 요청 중...", Color.WHITE);
+            NetworkHandler.getInstance().requestLogin(id, pw);
+        }
+        else
+        {
+            showRegStatus("회원가입 요청 중", Color.WHITE);
+            NetworkHandler.getInstance().requestRegister(id, pw, id);
+        }
+    }
+
     private void showLoginStatus(String message, Color color) {
         loginStatusLabel.setText(message);
         loginStatusLabel.setForeground(color);
@@ -330,5 +320,37 @@ public class AuthPopup extends JPanel implements IPopup {
         super.paintComponent(g);
         g.setColor(new Color(0, 0, 0, 170));
         g.fillRect(0, 0, getWidth(), getHeight());
+    }
+
+
+
+
+
+
+    public void onLogin(String isSuccess, String failReason)
+    {
+        if (!"SUCCESS".equals(isSuccess))
+        {
+            showLoginStatus(failReason, new Color(255, 120, 120));
+            return;
+        }
+
+        showLoginStatus(" ", Color.WHITE);
+        mainFrame.hideAuthPopup();
+        mainFrame.showScreen(MainFrame.TAG_MULTI_LOBBY);
+    }
+
+    public void onRegister(String isSuccess, String failReason)
+    {
+        if (!"SUCCESS".equals(isSuccess))
+        {
+            showRegStatus(failReason, new Color(255, 120, 120));
+            return;
+        }
+
+        showRegStatus("회원가입에 성공했습니다!", Color.CYAN);
+        resetRegisterForm();
+        cardLayout.show(cardsPanel, CARD_LOGIN);
+        showLoginStatus("회원가입 성공! 로그인해 주세요.", Color.CYAN);
     }
 }

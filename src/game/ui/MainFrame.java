@@ -1,7 +1,9 @@
 package game.ui;
 
-import game.NetworkManager;
+import Network.NetworkConnection;
+import Network.NetworkHandler;
 import game.SettingsManager;
+import game.UserProfileState;
 import game.ranking.RankingRepository;
 import game.ui.multigame.MultiGameScreen;
 import game.ui.multigame.MultiMatchResultPanel;
@@ -10,7 +12,6 @@ import game.ui.outgame.popup.*;
 import game.ui.common.UIUtils;
 import javax.swing.*;
 import java.awt.*;
-import java.util.function.Consumer;
 
 //======================================================================================================================
 // 메인프레임
@@ -55,16 +56,15 @@ public class MainFrame extends JFrame {
     private final RoomCreatePopup roomCreatePopup;
 
     private final SettingsManager settings = new SettingsManager();
-    private final Consumer<String> globalPacketListener = this::handleGlobalPacket;
+    private final NetworkConnection networkConnection;
 
-    public MainFrame() {
+    public MainFrame(NetworkConnection networkConnection) {
         try {
             settings.load();
         } catch (Exception e) {
             System.err.println("설정로딩실패" + e.getMessage());
         }
-
-        NetworkManager.getInstance().addPacketListener(globalPacketListener);
+        this.networkConnection = networkConnection;
 
         // 각 화면은 한 번만 만들고 CardLayout에서 재사용합니다.
         multiRoomPanel = new MultiRoomPanel(this);
@@ -72,16 +72,16 @@ public class MainFrame extends JFrame {
         multiMatchResultPanel = new MultiMatchResultPanel(
                 () -> showScreen(TAG_MULTI_ROOM),
                 () -> {
-                    NetworkManager.getInstance().leaveRoom();
+                    NetworkHandler.getInstance().requestLeaveRoom();
                     multiRoomPanel.clearRoomSession();
-                    NetworkManager.getInstance().requestRoomList();
+                    NetworkHandler.getInstance().requestRoomList();
                     showScreen(TAG_MULTI_LOBBY);
                 });
-        multiGameScreen = new MultiGameScreen(reason -> {
+        multiGameScreen = new MultiGameScreen (reason -> {
             System.out.println("멀티게임 종료 사유: " + reason);
             if ("LEFT_GAME".equals(reason)) {
                 multiRoomPanel.clearRoomSession();
-                NetworkManager.getInstance().requestRoomList();
+                NetworkHandler.getInstance().requestRoomList();
                 showScreen(TAG_MULTI_LOBBY);
             } else if (reason != null && reason.startsWith("RES_MATCH_RESULT|")) {
                 // 서버가 확정한 결과를 화면에 전달한 다음 결과 페이지로 이동합니다.
@@ -91,6 +91,7 @@ public class MainFrame extends JFrame {
                 showScreen(TAG_MULTI_ROOM);
             }
         }, settings, this::showGameLeavePopup, this::showSettingsPopup);
+
         setTitle("테트리스");
         java.net.URL appIcon = getClass().getResource("/game/asset/tetrisLogo.jpg");
         if (appIcon != null) setIconImage(new ImageIcon(appIcon).getImage());
@@ -180,20 +181,58 @@ public class MainFrame extends JFrame {
         showScreen(TAG_MENU);
     }
 
-    //메인 화면 전환, 프로필 갱신
-    private void handleGlobalPacket(String packet) {
-        if (packet == null || packet.trim().isEmpty()) return;
-        String command = packet.split("\\|", 2)[0];
+    public void tick()
+    {
+        tickConnection();
 
-        if ("RES_USER_INFO".equals(command)) {
-            profilePopup.refreshData();
-        } else if ("RES_ROOM_CLOSED".equals(command)) {
-            multiGameScreen.stop();
-            multiRoomPanel.clearRoomSession();
-            NetworkManager.getInstance().requestRoomList();
-            showScreen(TAG_MULTI_LOBBY);
+        gameScreen.tick();
+        multiGameScreen.tick();
+    }
+
+    public NetworkConnection getNetworkConnection()
+    { return networkConnection; }
+
+    public void connectServer()
+    { networkConnection.connect(SERVER_HOST, SERVER_PORT); }
+
+    public void disconnectServer()
+    {
+        networkConnection.disconnect();
+        resetUserProfile();
+    }
+    public static final String SERVER_HOST = configuredServerHost();
+    public static final int SERVER_PORT = configuredServerPort();
+
+    private static String configuredServerHost() {
+        String host = System.getProperty("tetris.server.host");
+        if (host == null || host.trim().isEmpty()) host = System.getenv("TETRIS_SERVER_HOST");
+        return host == null || host.trim().isEmpty() ? "20.196.201.100" : host.trim();
+    }
+
+    private static int configuredServerPort() {
+        String portValue = System.getProperty("tetris.server.port");
+        if (portValue == null || portValue.trim().isEmpty()) portValue = System.getenv("TETRIS_SERVER_PORT");
+        if (portValue == null || portValue.trim().isEmpty()) return 5000;
+        try {
+            int port = Integer.parseInt(portValue.trim());
+            return port >= 1 && port <= 65535 ? port : 5000;
+        } catch (NumberFormatException ignored) {
+            return 5000;
         }
     }
+    public UserProfileState getUserProfile()
+    { return profile; }
+
+    public void resetUserProfile()
+    { profile = UserProfileState.empty(); }
+    public void tickConnection()
+    {
+        authPopup.tickConnection();
+
+        if (networkConnection.isClosed())
+            disconnectServer();
+    }
+
 
     // 참가한 사람 정보 전달
     public void startMultiGame(int mySlotIndex, boolean isHost, MultiRoomPanel.SlotType[] slots,
@@ -240,7 +279,8 @@ public class MainFrame extends JFrame {
 
     public void showProfilePopup() {
         if (profilePopup != null) {
-            if (NetworkManager.getInstance().isConnected) NetworkManager.getInstance().requestUserInfo();
+            if (networkConnection.isConnected())
+                NetworkHandler.getInstance().requestUserInfo();
             profilePopup.refreshData();
             UIUtils.animatePopupIn(profilePopup);
             layeredPane.moveToFront(profilePopup);
@@ -249,7 +289,8 @@ public class MainFrame extends JFrame {
     }
     public void hideProfilePopup() { profilePopup.setVisible(false); layeredPane.revalidate(); }
     public void showShopPopup() {
-        if (NetworkManager.getInstance().isConnected) NetworkManager.getInstance().requestUserInfo();
+        if (networkConnection.isConnected())
+            NetworkHandler.getInstance().requestUserInfo();
         UIUtils.animatePopupIn(shopPopup);
         layeredPane.revalidate();
     }
@@ -279,5 +320,108 @@ public class MainFrame extends JFrame {
 
     private void showGameLeavePopup() {
         showRoomLeavePopup(multiGameScreen::confirmLeaveGame);
+    }
+
+    public AuthPopup getAuthPopup()
+    { return authPopup; }
+
+    public ShopPopup getShopPopup()
+    { return shopPopup; }
+
+    public MultiLobbyPanel getMultiLobbyPanel()
+    { return multiLobbyPanel; }
+
+    public MultiRoomPanel getMultiRoomPanel()
+    { return multiRoomPanel; }
+
+    public MultiGameScreen getMultiGameScreen()
+    { return multiGameScreen; }
+
+
+
+
+
+
+
+
+
+
+    // NetworkManager에 있던 패킷 받는 책임, 임시로 MainFrame에 작성
+    private UserProfileState profile = UserProfileState.empty();
+    public void setMyNickname(String nickname) { profile = profile.withNickname(nickname == null ? "" : nickname); }
+    public String getMyNickname() { return profile.getNickname(); }
+
+    public void onLogin(String isSuccess, String nickname, String failReason)
+    {
+        if ("SUCCESS".equals(isSuccess))
+        {
+            setMyNickname(nickname);
+            NetworkHandler.getInstance().requestUserInfo();
+            NetworkHandler.getInstance().requestRoomList();
+        }
+
+        authPopup.onLogin(isSuccess, failReason);
+    }
+
+    public void onChangeNick(
+            String isSuccess, String nickname, String failReason)
+    {
+        if (!"SUCCESS".equals(isSuccess))
+        {
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(
+                    profilePopup, failReason, "닉네임 변경 실패",
+                    JOptionPane.WARNING_MESSAGE));
+            return;
+        }
+
+        setMyNickname(nickname);
+        profilePopup.refreshData();
+    }
+
+    public void onProfilePic(
+            String isSuccess, String base64Image, String failReason)
+    {
+        if (!"SUCCESS".equals(isSuccess))
+        {
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(
+                    profilePopup, failReason, "프로필 사진 변경 실패",
+                    JOptionPane.WARNING_MESSAGE));
+            return;
+        }
+
+        try
+        {
+            byte[] image =
+                    game.profile.ProfileImageCodec.decodeFromServer(base64Image);
+
+            profile = profile.withProfileImage(image);
+        }
+        catch (IllegalArgumentException | java.io.IOException e)
+        {
+            e.printStackTrace();
+        }
+
+        profilePopup.refreshData();
+    }
+    public void onUserInfo(UserProfileState updatedProfile)
+    {
+        if (updatedProfile != null)
+            profile = updatedProfile;
+
+        profilePopup.refreshData();
+        shopPopup.onUserInfo();
+    }
+    public void onRoomClosed()
+    {
+        multiGameScreen.stop();
+        multiRoomPanel.clearRoomSession();
+        NetworkHandler.getInstance().requestRoomList();
+        showScreen(TAG_MULTI_LOBBY);
+    }
+
+    public void onChat(String sender, String message)
+    {
+        multiRoomPanel.onChat(sender, message);
+        multiGameScreen.onChat(sender, message);
     }
 }

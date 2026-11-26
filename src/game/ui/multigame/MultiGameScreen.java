@@ -1,8 +1,8 @@
 package game.ui.multigame;
 
-import game.NetworkManager;
+import Network.NetworkHandler;
 import game.SettingsManager;
-import game.tetris.Tetris;
+import game.tetris.Tetris_Client;
 import game.tetris.board.BoardSnapshotCodec;
 import game.tetris.input.InputSourceType;
 import game.tetris.tetrominoQueue.PieceGenerator_7Bag;
@@ -14,7 +14,6 @@ import game.ui.outgame.MultiRoomPanel.SlotType;
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +23,6 @@ import java.util.function.Consumer;
 // 멀티플레이 화면 구현
 //======================================================================================================================
 public class MultiGameScreen extends JPanel {
-    private static final int FRAME_MS = 1000 / 60;
     private static final int GAME_OVER_HOLD_FRAMES = 120;
     private static final int PANEL_GAP = 4;
     private static final long TIME_RESULT_GRACE_NANOS = 1_000_000_000L;
@@ -36,10 +34,10 @@ public class MultiGameScreen extends JPanel {
     private final Runnable onLeaveRequested;
     private final Runnable onSettingsRequested;
     private final SettingsManager settings;
-    private final Timer timer = new Timer(FRAME_MS, e -> tick());
+    private boolean running;
 
-    private final Map<Integer, Tetris> allGames = new HashMap<>();
-    private final Map<Integer, Tetris> localGames = new HashMap<>();
+    private final Map<Integer, Tetris_Client> allGames = new HashMap<>();
+    private final Map<Integer, Tetris_Client> localGames = new HashMap<>();
     private final Map<Integer, MultiGameBoardPanel> gamePanels = new HashMap<>();
 
     private final SlotType[] slotTypes = new SlotType[4];
@@ -49,7 +47,6 @@ public class MultiGameScreen extends JPanel {
     private final int[] reportedLines = new int[4];
     private final int[] eliminationOrder = new int[4];
     private final String[] playerNames = new String[4];
-    private Consumer<String> networkListener;
 
     private final JPanel gridPanel;
     private final JPanel standingsRows = new JPanel();
@@ -190,7 +187,7 @@ public class MultiGameScreen extends JPanel {
                 inputType = InputSourceType.AI;
             }
 
-            Tetris game = new Tetris(inputType, new TetrominoQueue(new PieceGenerator_7Bag()), level, settings);
+            Tetris_Client game = new Tetris_Client(inputType, new TetrominoQueue(new PieceGenerator_7Bag()), level, settings);
             game.setSystemControlsEnabled(false);
             allGames.put(i, game);
 
@@ -210,90 +207,23 @@ public class MultiGameScreen extends JPanel {
             gridPanel.add(playerColumn(name, panel, i));
         }
 
-        setupNetworkListener();
-
         updateStandings();
         gridPanel.revalidate();
         gridPanel.repaint();
         requestFocusInWindow();
-        timer.start();
+        running = true;
     }
 
-    private void setupNetworkListener() {
-        if (networkListener != null) NetworkManager.getInstance().removePacketListener(networkListener);
-        networkListener = packet -> {
-            String[] tokens = packet.split("\\|", -1);
-            String cmd = tokens[0];
 
-            SwingUtilities.invokeLater(() -> {
-                if ("RES_GAME_OVER".equals(cmd) && tokens.length >= 2) {
-                    try {
-                        int slot = Integer.parseInt(tokens[1]);
-                        if (slot >= 0 && slot < isGameOver.length) {
-                            if (!isGameOver[slot]) {
-                                isGameOver[slot] = true;
-                                eliminationOrder[slot] = ++eliminationCounter;
-                                updateStandings();
-                            }
-                            Tetris game = allGames.get(slot);
-                            if (game != null) game.markGameOver();
-                        }
-                    } catch (Exception ignored) {}
-                }
-                else if ("RES_PLAYER_STATS".equals(cmd) && tokens.length >= 4) {
-                    try {
-                        int slot = Integer.parseInt(tokens[1]);
-                        int score = Integer.parseInt(tokens[2]);
-                        int lines = Integer.parseInt(tokens[3]);
-                        if (slot >= 0 && slot < slotTypes.length && score >= 0 && lines >= 0
-                                && (slotTypes[slot] == SlotType.HUMAN || slotTypes[slot] == SlotType.BOT)) {
-                            reportedScores[slot] = score;
-                            reportedLines[slot] = lines;
-                            updateStandings();
-                        }
-                    } catch (NumberFormatException ignored) {}
-                }
-
-                else if ("RES_BOARD_SYNC".equals(cmd) && tokens.length >= 3) {
-                    try {
-                        int slot = Integer.parseInt(tokens[1]);
-                        String payload = tokens[2]; // 보드문자열
-
-                        if (slot >= 0 && slot < slotTypes.length
-                                && slot != mySlotIndex && (!isHost || slotTypes[slot] != SlotType.BOT)) {
-                            Tetris remoteGame = allGames.get(slot);
-                            if (remoteGame != null) {
-                                BoardSnapshotCodec.apply(remoteGame, payload);
-                                gamePanels.get(slot).repaint();
-                            }
-                        }
-                    } catch (Exception ignored) {}
-                }
-                else if ("RES_MATCH_RESULT".equals(cmd) && tokens.length >= 3) {
-                    try {
-                        Integer.parseInt(tokens[1]);
-                        matchResultPacket = packet;
-                        waitingForServerResult = false;
-                        finished = true;
-                        finishedFrames = 0;
-                        NetworkManager.getInstance().requestUserInfo();
-                    } catch (Exception ignored) {}
-                }
-                else if ("RES_CHAT".equals(cmd) && tokens.length >= 3) {
-                    appendChat(tokens[1], tokens[2]);
-                }
-            });
-        };
-        NetworkManager.getInstance().addPacketListener(networkListener);
-    }
-
-    private void tick() {
+    public void tick() {
+        if (!running)
+            return;
         if (System.nanoTime() < countdownEndsAtNanos) {
             repaint();
             return;
         }
         if (timeResultsPending && !timeResultsSent && System.nanoTime() >= timeResultsSendAtNanos) {
-            for (Map.Entry<Integer, Tetris> entry : localGames.entrySet()) {
+            for (Map.Entry<Integer, Tetris_Client> entry : localGames.entrySet()) {
                 int slot = entry.getKey();
                 if (!isGameOver[slot]) sendTimeResult(slot, entry.getValue());
             }
@@ -321,15 +251,15 @@ public class MultiGameScreen extends JPanel {
             modeStatus.setText(mode.getLabel());
         }
 
-        for (Map.Entry<Integer, Tetris> entry : localGames.entrySet()) {
+        for (Map.Entry<Integer, Tetris_Client> entry : localGames.entrySet()) {
             int slot = entry.getKey();
-            Tetris game = entry.getValue();
+            Tetris_Client game = entry.getValue();
 
             if (isGameOver[slot]) continue;
 
             game.tick();
 
-            int lines = game.getLines();
+            int lines = game.flow.getLines();
             if (lines > lastReportedLines[slot]) {
                 lastReportedLines[slot] = lines;
             }
@@ -338,29 +268,29 @@ public class MultiGameScreen extends JPanel {
                 sendBoardSync(slot, game);
             }
             if (statsSyncTick % 15 == 0) {
-                int score = game.getScore();
-                int currentLines = game.getLines();
+                int score = game.flow.getScore();
+                int currentLines = game.flow.getLines();
                 reportedScores[slot] = score;
                 reportedLines[slot] = currentLines;
                 updateStandings();
-                NetworkManager.getInstance().reportPlayerStats(slot,
+                NetworkHandler.getInstance().requestPlayerStats(slot,
                         score, currentLines);
             }
 
-            if (game.isGameOver()) {
+            if (game.flow.isGameOver()) {
                 if (!isGameOver[slot]) {
                     isGameOver[slot] = true;
                     eliminationOrder[slot] = ++eliminationCounter;
                     updateStandings();
                 }
-                NetworkManager.getInstance().reportGameOver(slot,
-                        game.getScore(), game.getLines());
+                NetworkHandler.getInstance().requestGameOver(slot,
+                        game.flow.getScore(), game.flow.getLines());
             } else if (mode == MultiGameMode.CLASSIC_40 && lines >= mode.getTargetLines()
                     && !winnerRequestSent) {
                 winnerRequestSent = true;
                 waitingForServerResult = true;
                 finished = true;
-                NetworkManager.getInstance().reportMatchWin(slot, game.getScore(), lines);
+                NetworkHandler.getInstance().requestMatchWin(slot, game.flow.getScore(), lines);
             }
         }
 
@@ -371,9 +301,9 @@ public class MultiGameScreen extends JPanel {
     }
 
     // 내 보드의 고정된 블록과 떨어지는 블록 정보를 조합하여 문자열로 압축 발송
-    private void sendBoardSync(int slot, Tetris game) {
+    private void sendBoardSync(int slot, Tetris_Client game) {
         String snapshot = BoardSnapshotCodec.encode(game);
-        NetworkManager.getInstance().sendBoardSync(slot, snapshot);
+        NetworkHandler.getInstance().requestBoardSync(slot, snapshot);
     }
 
     private void checkMultiGameFinished() {
@@ -395,23 +325,20 @@ public class MultiGameScreen extends JPanel {
         }
     }
 
-    private void sendTimeResult(int slot, Tetris game) {
-        NetworkManager.getInstance().reportTimeResult(slot,
-                game.getScore(), game.getLines());
+    private void sendTimeResult(int slot, Tetris_Client game) {
+        NetworkHandler.getInstance().requestTimeResult(slot,
+                game.flow.getScore(), game.flow.getLines());
     }
 
     private void reportResult() {
         stop();
-        if (onFinished != null && matchResultPacket != null) onFinished.accept(matchResultPacket);
+        if (onFinished != null && matchResultPacket != null)
+            onFinished.accept(matchResultPacket);
     }
 
     public void stop() {
-        timer.stop();
-        if (networkListener != null) {
-            NetworkManager.getInstance().removePacketListener(networkListener);
-            networkListener = null;
-        }
-        for (Tetris game : allGames.values()) game.close();
+        running = false;
+        for (Tetris_Client game : allGames.values()) game.close();
         allGames.clear();
         localGames.clear();
         gamePanels.clear();
@@ -526,7 +453,7 @@ public class MultiGameScreen extends JPanel {
             char ch = message.charAt(i);
             if (!Character.isISOControl(ch) && ch != '|') safe.append(ch);
         }
-        if (safe.length() > 0) NetworkManager.getInstance().sendChat("ROOM", safe.toString());
+        if (safe.length() > 0) NetworkHandler.getInstance().requestChat("ROOM", safe.toString());
         chatField.setText("");
     }
 
@@ -555,15 +482,15 @@ public class MultiGameScreen extends JPanel {
     }
 
     public void confirmLeaveGame() {
-        for (Map.Entry<Integer, Tetris> entry : localGames.entrySet()) {
+        for (Map.Entry<Integer, Tetris_Client> entry : localGames.entrySet()) {
             int slot = entry.getKey();
-            Tetris game = entry.getValue();
+            Tetris_Client game = entry.getValue();
             if (!isGameOver[slot]) {
-                NetworkManager.getInstance().reportGameOver(slot,
-                        game.getScore(), game.getLines());
+                NetworkHandler.getInstance().requestGameOver(slot,
+                        game.flow.getScore(), game.flow.getLines());
             }
         }
-        NetworkManager.getInstance().leaveRoom();
+        NetworkHandler.getInstance().requestLeaveRoom();
         stop();
         if (onFinished != null) onFinished.accept("LEFT_GAME");
     }
@@ -622,5 +549,69 @@ public class MultiGameScreen extends JPanel {
         g.drawString(text, x + (box - metrics.stringWidth(text)) / 2,
                 y + (box - metrics.getHeight()) / 2 + metrics.getAscent());
         g.dispose();
+    }
+
+    public void onUpdateRemoteBoard(int roomSlot, String boardSnapshot)
+    {
+        if (!running)
+            return;
+        if (roomSlot >= 0 && roomSlot < slotTypes.length
+                && roomSlot != mySlotIndex && (!isHost || slotTypes[roomSlot] != SlotType.BOT))
+        {
+            Tetris_Client remoteGame = allGames.get(roomSlot);
+            if (remoteGame != null)
+            {
+                BoardSnapshotCodec.apply(remoteGame.board, remoteGame.activePiece, boardSnapshot);
+                gamePanels.get(roomSlot).repaint();
+            }
+        }
+    }
+
+    public void onUpdatePlayerStats(int roomSlot, int score, int lines)
+    {
+        if (!running)
+            return;
+        if (roomSlot >= 0 && roomSlot < slotTypes.length && score >= 0 && lines >= 0
+                && (slotTypes[roomSlot] == SlotType.HUMAN || slotTypes[roomSlot] == SlotType.BOT))
+        {
+            reportedScores[roomSlot] = score;
+            reportedLines[roomSlot] = lines;
+            updateStandings();
+        }
+    }
+
+    public void onGameOver(int roomSlot)
+    {
+        if (!running)
+            return;
+        if (roomSlot >= 0 && roomSlot < isGameOver.length) {
+            if (!isGameOver[roomSlot]) {
+                isGameOver[roomSlot] = true;
+                eliminationOrder[roomSlot] = ++eliminationCounter;
+                updateStandings();
+            }
+            Tetris_Client game = allGames.get(roomSlot);
+            if (game != null) game.markGameOver();
+        }
+    }
+
+    public void onMatchResult(String packet)
+    {
+        if (!running)
+            return;
+        matchResultPacket = packet;
+        waitingForServerResult = false;
+        finished = true;
+        finishedFrames = 0;
+
+        NetworkHandler.getInstance().requestUserInfo();
+    }
+
+    public void onChat(String sender, String message)
+    {
+        if (!running)
+            return;
+
+        appendChat(sender, message);
     }
 }

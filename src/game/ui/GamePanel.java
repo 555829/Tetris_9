@@ -1,6 +1,6 @@
 package game.ui;
 
-import game.tetris.ITetrisReader;
+import game.tetris.ITetris;
 import game.tetris.tetromino.TetrominoEnum;
 import game.tetris.tetromino.TetrominoShape;
 import game.tetris.flow.KickedPiece;
@@ -42,9 +42,9 @@ public class GamePanel extends JPanel
         COLORS.put(TetrominoEnum.MirroredLShape, new Color(102, 102, 204));
     }
 
-    private final ITetrisReader game;
+    private final ITetris game;
 
-    public GamePanel(ITetrisReader game)
+    public GamePanel(ITetris game)
     {
         this.game = game;
 

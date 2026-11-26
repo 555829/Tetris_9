@@ -1,6 +1,6 @@
 package game.ui.outgame;
 
-import game.NetworkManager;
+import Network.NetworkHandler;
 import game.ui.MainFrame;
 import game.ui.common.UIUtils;
 import game.ui.common.ResponsiveGridLayout;
@@ -9,7 +9,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.function.Consumer;
 
 //======================================================================================================================
 // 멀티플레이 방
@@ -23,6 +22,69 @@ public class MultiRoomPanel extends JPanel {
     private boolean isHost = false;
     private int hostSlotIndex = 0;
     private int currentRoomId = -1;
+    public void onCreateRoom(
+            String isSuccess, int roomId, String failReason)
+    {
+        if (!"SUCCESS".equals(isSuccess))
+        {
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(
+                    this, failReason, "방 입장 오류",
+                    JOptionPane.WARNING_MESSAGE));
+            return;
+        }
+
+        clearRoomChat(roomId);
+        mySlotIndex = 0;
+        isHost = true;
+
+        updateActionBtnText();
+        mainFrame.showScreen(MainFrame.TAG_MULTI_ROOM);
+    }
+
+    public void onJoinRoom(
+            String isSuccess, int roomId, int slotIndex, String failReason)
+    {
+        if (!"SUCCESS".equals(isSuccess))
+        {
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(
+                    this, failReason, "방 입장 오류",
+                    JOptionPane.WARNING_MESSAGE));
+            return;
+        }
+
+        clearRoomChat(roomId);
+        mySlotIndex = slotIndex;
+        isHost = (mySlotIndex == hostSlotIndex);
+
+        updateActionBtnText();
+        mainFrame.showScreen(MainFrame.TAG_MULTI_ROOM);
+    }
+
+    public void onStartGame()
+    {
+        mainFrame.startMultiGame(mySlotIndex, isHost, slotTypes, slotNicks, gameModeStr);
+    }
+
+    public void onReadyToggle(int roomSlotIndex, boolean isReady)
+    {
+        if (roomSlotIndex < 0 || roomSlotIndex >= slotReady.length) return;
+        slotReady[roomSlotIndex] = isReady;
+        updateSlotUI(roomSlotIndex);
+    }
+
+    public void onChat(String sender, String message)
+    {
+        if ("SYSTEM".equals(sender)
+                && isStartRequirementNotice(message))
+        {
+            showCenterNotice(message);
+        }
+        else
+        {
+            appendChatMessage(sender, message);
+        }
+    }
+
 
     public enum SlotType { HUMAN, BOT, EMPTY, CLOSED }
     private SlotType[] slotTypes = new SlotType[]{SlotType.HUMAN, SlotType.EMPTY, SlotType.EMPTY, SlotType.EMPTY};
@@ -130,70 +192,10 @@ public class MultiRoomPanel extends JPanel {
         add(topPanel, BorderLayout.NORTH);
         add(mainCenterPanel, BorderLayout.CENTER);
         add(bottomPanel, BorderLayout.SOUTH);
-
-        setupNetworkListener();
-    }
-
-    private void setupNetworkListener() {
-        Consumer<String> roomPacketListener = packet -> {
-            if (packet == null || packet.trim().isEmpty()) return;
-            String[] tokens = packet.split("\\|", -1);
-            String cmd = tokens[0];
-
-            SwingUtilities.invokeLater(() -> {
-                if ("RES_CHAT".equals(cmd) && tokens.length >= 3) {
-                    int messageStart = packet.indexOf('|', packet.indexOf('|') + 1) + 1;
-                    String message = messageStart > 0 ? packet.substring(messageStart) : "";
-                    if ("SYSTEM".equals(tokens[1]) && isStartRequirementNotice(message)) {
-                        showCenterNotice(message);
-                    } else {
-                        appendChatMessage(tokens[1], message);
-                    }
-                } else if ("RES_ROOM_INFO".equals(cmd)) {
-                    updateRoomInfo(tokens);
-                } else if ("RES_READY_TOGGLE".equals(cmd) && tokens.length >= 3) {
-                    try {
-                        int slotIdx = Integer.parseInt(tokens[1]);
-                        if (slotIdx < 0 || slotIdx >= slotReady.length) return;
-                        boolean ready = Boolean.parseBoolean(tokens[2]);
-                        slotReady[slotIdx] = ready;
-                        updateSlotUI(slotIdx);
-                    } catch (Exception ignored) {}
-                } else if ("RES_START_GAME".equals(cmd)) {
-                    if (mainFrame != null) {
-                        mainFrame.startMultiGame(mySlotIndex, isHost, slotTypes, slotNicks, gameModeStr);
-                    }
-                } else if ("RES_JOIN_ROOM".equals(cmd) && tokens.length >= 2 && "SUCCESS".equals(tokens[1])) {
-                    if (tokens.length >= 4) {
-                        clearRoomChat(parseInt(tokens[2], -1));
-                        mySlotIndex = Integer.parseInt(tokens[3]);
-                        isHost = (mySlotIndex == hostSlotIndex);
-                        updateActionBtnText();
-                        // 🌟 방 입장 성공 시 대기실 방 화면으로 전환!
-                        if (mainFrame != null) {
-                            mainFrame.showScreen(MainFrame.TAG_MULTI_ROOM);
-                        }
-                    }
-                } else if ("RES_CREATE_ROOM".equals(cmd) && tokens.length >= 2 && "SUCCESS".equals(tokens[1])) {
-                    clearRoomChat(tokens.length >= 3 ? parseInt(tokens[2], -1) : -1);
-                    mySlotIndex = 0;
-                    isHost = true;
-                    updateActionBtnText();
-                    // 🌟 방 생성 성공 시 대기실 방 화면으로 전환!
-                    if (mainFrame != null) {
-                        mainFrame.showScreen(MainFrame.TAG_MULTI_ROOM);
-                    }
-                } else if (("RES_JOIN_ROOM".equals(cmd) || "RES_CREATE_ROOM".equals(cmd))
-                        && tokens.length >= 3 && "FAIL".equals(tokens[1])) {
-                    JOptionPane.showMessageDialog(this, tokens[2], "방 입장 오류", JOptionPane.WARNING_MESSAGE);
-                }
-            });
-        };
-        NetworkManager.getInstance().addPacketListener(roomPacketListener);
     }
 
     /** 서버 방 정보 패킷에서 호스트와 네 슬롯의 참가 상태를 갱신합니다. */
-    private void updateRoomInfo(String[] tokens) {
+    public void updateRoomInfo(String[] tokens) {
         if (tokens.length < 5) return;
         clearRoomChat(parseInt(tokens[1], -1));
         String hostNickname = tokens[4];
@@ -340,18 +342,18 @@ public class MultiRoomPanel extends JPanel {
 
                 if (slotTypes[slotIdx] == SlotType.EMPTY) {
                     JMenuItem addBot = new JMenuItem("AI 봇 추가");
-                    addBot.addActionListener(evt -> NetworkManager.getInstance().addBot(slotIdx));
+                    addBot.addActionListener(evt -> NetworkHandler.getInstance().requestAddBot(slotIdx));
                     popup.add(addBot);
                     JMenuItem lockSlot = new JMenuItem("슬롯 잠그기");
-                    lockSlot.addActionListener(evt -> NetworkManager.getInstance().setSlotLocked(slotIdx, true));
+                    lockSlot.addActionListener(evt -> NetworkHandler.getInstance().requestSetSlotLocked(slotIdx, true));
                     popup.add(lockSlot);
                 } else if (slotTypes[slotIdx] == SlotType.BOT) {
                     JMenuItem removeBot = new JMenuItem("AI 봇 제거");
-                    removeBot.addActionListener(evt -> NetworkManager.getInstance().removeBot(slotIdx));
+                    removeBot.addActionListener(evt -> NetworkHandler.getInstance().requestRemoveBot(slotIdx));
                     popup.add(removeBot);
                 } else if (slotTypes[slotIdx] == SlotType.CLOSED) {
                     JMenuItem unlockSlot = new JMenuItem("슬롯 열기");
-                    unlockSlot.addActionListener(evt -> NetworkManager.getInstance().setSlotLocked(slotIdx, false));
+                    unlockSlot.addActionListener(evt -> NetworkHandler.getInstance().requestSetSlotLocked(slotIdx, false));
                     popup.add(unlockSlot);
                 } else {
                     return;
@@ -381,15 +383,15 @@ public class MultiRoomPanel extends JPanel {
                     return;
                 }
             }
-            NetworkManager.getInstance().startGame();
+            NetworkHandler.getInstance().requestStartGame();
         } else {
-            NetworkManager.getInstance().toggleReady();
+            NetworkHandler.getInstance().requestToggleReady();
         }
     }
 
     private void handleLeaveRoom() {
         mainFrame.showRoomLeavePopup(() -> {
-            NetworkManager.getInstance().leaveRoom();
+            NetworkHandler.getInstance().requestLeaveRoom();
             clearRoomChat(-1);
             mainFrame.showScreen(MainFrame.TAG_MULTI_LOBBY);
         });
@@ -441,7 +443,7 @@ public class MultiRoomPanel extends JPanel {
                 char ch = msg.charAt(i);
                 if (!Character.isISOControl(ch)) safe.append(ch);
             }
-            if (safe.length() > 0) NetworkManager.getInstance().sendChat("ROOM", safe.toString());
+            if (safe.length() > 0) NetworkHandler.getInstance().requestChat("ROOM", safe.toString());
             chatField.setText("");
         }
     }
@@ -513,11 +515,11 @@ public class MultiRoomPanel extends JPanel {
         if (result != JOptionPane.OK_OPTION) return;
         String title = field.getText().trim();
         if (!isValidRoomTitle(title)) {
-            JOptionPane.showMessageDialog(this, "방 제목은 1~30자이며 쉼표와 구분자를 사용할 수 없습니다.",
-                    "잘못된 제목", JOptionPane.WARNING_MESSAGE);
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, "방 제목은 1~30자이며 쉼표와 구분자를 사용할 수 없습니다.",
+                    "잘못된 제목", JOptionPane.WARNING_MESSAGE));
             return;
         }
-        NetworkManager.getInstance().changeRoomTitle(title);
+        NetworkHandler.getInstance().requestChangeRoomTitle(title);
     }
 
     private void editGameMode() {
@@ -528,7 +530,7 @@ public class MultiRoomPanel extends JPanel {
         int result = JOptionPane.showConfirmDialog(this, selector, "게임 모드 수정",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (result == JOptionPane.OK_OPTION) {
-            NetworkManager.getInstance().changeRoomSettings(String.valueOf(selector.getSelectedItem()));
+            NetworkHandler.getInstance().requestChangeRoomSettings(String.valueOf(selector.getSelectedItem()));
         }
     }
 
@@ -633,4 +635,6 @@ public class MultiRoomPanel extends JPanel {
                 y + (height - metrics.getHeight()) / 2 + metrics.getAscent());
         g.dispose();
     }
+
+
 }

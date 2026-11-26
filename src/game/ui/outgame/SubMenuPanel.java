@@ -1,6 +1,5 @@
 package game.ui.outgame;
 
-import game.NetworkManager;
 import game.ui.MainFrame;
 import game.ui.common.UIUtils;
 import javax.swing.*;

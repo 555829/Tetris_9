@@ -1,7 +1,7 @@
 package game.ui;
 
 import game.SettingsManager;
-import game.tetris.Tetris;
+import game.tetris.Tetris_Client;
 import game.tetris.input.InputSourceType;
 import game.tetris.tetrominoQueue.PieceGenerator_7Bag;
 import game.tetris.tetrominoQueue.TetrominoQueue;
@@ -19,8 +19,6 @@ import java.util.function.Consumer;
 // 모드별 레이아웃 코드가 따로 없음
 public class GameScreen extends JPanel
 {
-    // TetrisFlow의 중력, 고정 지연이 60fps 기준 프레임 단위로 계산되어 있음
-    private static final int FRAME_MS = 1000 / 60;
     // 결과 화면으로 넘어가기 전에 게임 오버 표시를 잠깐 보여주는 시간
     private static final int GAME_OVER_HOLD_FRAMES = 120;
     private static final int PANEL_GAP = 24;
@@ -28,10 +26,10 @@ public class GameScreen extends JPanel
     private static final Color BACKGROUND = new Color(24, 24, 32);
     private static final Color TEXT = new Color(230, 230, 235);
 
+    private boolean running;
     private final Consumer<GameResult> onFinished;
     private final SettingsManager settings;
-    private final Timer timer = new Timer(FRAME_MS, e -> tick());
-    private final List<Tetris> games = new ArrayList<>();
+    private final List<Tetris_Client> games = new ArrayList<>();
 
     private GameMode mode;
     private int level;
@@ -74,7 +72,7 @@ public class GameScreen extends JPanel
 
         for (int i = 0; i < players.length; i++)
         {
-            Tetris game = new Tetris(players[i], new TetrominoQueue(new PieceGenerator_7Bag()), level, settings);
+            Tetris_Client game = new Tetris_Client(players[i], new TetrominoQueue(new PieceGenerator_7Bag()), level, settings);
             games.add(game);
 
             gbc.gridx = i;
@@ -84,29 +82,33 @@ public class GameScreen extends JPanel
         revalidate();
         repaint();
         requestFocusInWindow();
-        timer.start();
+        running = true;
     }
 
     // 루프를 멈추고 현재 게임들을 정리. 여러 번 호출해도 안전함
     public void stop()
     {
-        timer.stop();
+        running = false;
         if (menuShown)
         {
             menuShown = false;
             menuListener.accept(false);
         }
-        for (Tetris game : games)
+        for (Tetris_Client game : games)
             game.close();
         games.clear();
         removeAll();
     }
 
-    private void tick()
+    void tick()
     {
+        if (!running)
+            return;
+
         if (finished)
         {
-            holdFinishedScreen();
+            if (++finishedFrames >= GAME_OVER_HOLD_FRAMES)
+                report();
             return;
         }
 
@@ -130,7 +132,7 @@ public class GameScreen extends JPanel
     {
         boolean someonePaused = isAnyoneHalted();
 
-        for (Tetris game : games)
+        for (Tetris_Client game : games)
         {
             boolean paused = isHalted(game);
             if (!someonePaused || paused)
@@ -140,13 +142,13 @@ public class GameScreen extends JPanel
 
     private boolean isAnyoneHalted()
     {
-        for (Tetris game : games)
+        for (Tetris_Client game : games)
             if (isHalted(game))
                 return true;
         return false;
     }
 
-    private static boolean isHalted(Tetris game)
+    private static boolean isHalted(Tetris_Client game)
     {
         return game.isPaused() || game.isMenuOpen();
     }
@@ -160,7 +162,7 @@ public class GameScreen extends JPanel
     private void updateMenu()
     {
         boolean open = false;
-        for (Tetris game : games)
+        for (Tetris_Client game : games)
             if (game.isMenuOpen())
                 open = true;
 
@@ -174,7 +176,7 @@ public class GameScreen extends JPanel
     // 메뉴의 "계속하기": 메뉴를 연 게임의 메뉴를 닫음 (openMenu()는 열기/닫기를 번갈아 함)
     public void closeMenu()
     {
-        for (Tetris game : games)
+        for (Tetris_Client game : games)
             if (game.isMenuOpen())
                 game.openMenu();
         updateMenu();
@@ -192,13 +194,13 @@ public class GameScreen extends JPanel
     private boolean checkFinished()
     {
         if (!mode.isVersus())
-            return games.get(0).isGameOver();
+            return games.get(0).flow.isGameOver();
 
         boolean anyOver = false;
         int survivor = -1;
         for (int i = 0; i < games.size(); i++)
         {
-            if (games.get(i).isGameOver())
+            if (games.get(i).flow.isGameOver())
                 anyOver = true;
             else if (survivor == -1)
                 survivor = i;
@@ -212,9 +214,9 @@ public class GameScreen extends JPanel
 
     private void report()
     {
-        Tetris player1 = games.get(0);
+        Tetris_Client player1 = games.get(0);
         GameResult result = new GameResult(mode, winner,
-                player1.getScore(), player1.getLevel(), player1.getLines());
+                player1.flow.getScore(), player1.flow.getLevel(), player1.flow.getLines());
 
         stop();
         onFinished.accept(result);

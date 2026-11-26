@@ -1,7 +1,7 @@
 package game.ui.multigame;
 
 import game.ui.common.UIUtils;
-import game.tetris.Tetris;
+import game.tetris.Tetris_Client;
 import game.tetris.tetromino.TetrominoEnum;
 import game.tetris.tetromino.TetrominoShape;
 
@@ -40,9 +40,9 @@ final class MultiGameBoardPanel extends JPanel {
         COLORS.put(TetrominoEnum.MirroredLShape, new Color(102, 102, 204));
     }
 
-    private final Tetris game;
+    private final Tetris_Client game;
 
-    MultiGameBoardPanel(Tetris game) {
+    MultiGameBoardPanel(Tetris_Client game) {
         this.game = game;
         setOpaque(true);
         setBackground(BACKGROUND);
@@ -95,8 +95,8 @@ final class MultiGameBoardPanel extends JPanel {
 
         for (int y = 0; y < BOARD_HEIGHT; y++) {
             for (int x = 0; x < BOARD_WIDTH; x++) {
-                TetrominoEnum type = game.getBoardCell(x, y);
-                if (type == TetrominoEnum.NoShape) type = game.getBoardCell(x, y);
+                TetrominoEnum type = game.activePiece.getCell(x, y);
+                if (type == TetrominoEnum.NoShape) type = game.board.getCell(x, y);
                 if (type != TetrominoEnum.NoShape) {
                     drawCell(g, originX + x * CELL, originY + y * CELL, CELL, type);
                 }
@@ -106,12 +106,12 @@ final class MultiGameBoardPanel extends JPanel {
 
     private void drawHold(Graphics2D g, int x, int y) {
         drawLabel(g, "홀드", x, y);
-        drawPreview(g, game.getHoldPiece(), x, y + 10);
+        drawPreview(g, game.flow.getHoldPiece(), x, y + 10);
     }
 
     private void drawNext(Graphics2D g, int x, int y) {
         drawLabel(g, "다음", x, y);
-        TetrominoEnum[] queue = game.getNextPieces();
+        TetrominoEnum[] queue = game.queue.getQueue();
         for (int i = 0; i < queue.length; i++) {
             drawPreview(g, queue[i], x, y + 10 + i * (PREVIEW_CELL * 3 + 8));
         }
@@ -121,11 +121,11 @@ final class MultiGameBoardPanel extends JPanel {
         g.setColor(TEXT);
         g.setFont(UIUtils.getFont(Font.BOLD, 13f));
         g.drawString("점수", x, y);
-        g.drawString(String.valueOf(game.getScore()), x, y + 18);
+        g.drawString(String.valueOf(game.flow.getScore()), x, y + 18);
         g.drawString("레벨", x, y + 50);
-        g.drawString(String.valueOf(game.getLevel()), x, y + 68);
+        g.drawString(String.valueOf(game.flow.getLevel()), x, y + 68);
         g.drawString("줄", x, y + 100);
-        g.drawString(String.valueOf(game.getLines()), x, y + 118);
+        g.drawString(String.valueOf(game.flow.getLines()), x, y + 118);
     }
 
     private void drawPreview(Graphics2D g, TetrominoEnum type, int x, int y) {
@@ -142,7 +142,7 @@ final class MultiGameBoardPanel extends JPanel {
     }
 
     private void drawGameOver(Graphics2D g, int boardX, int boardY) {
-        if (!game.isGameOver()) return;
+        if (!game.flow.isGameOver()) return;
         int width = BOARD_WIDTH * CELL;
         int height = BOARD_HEIGHT * CELL;
         g.setColor(new Color(0, 0, 0, 160));

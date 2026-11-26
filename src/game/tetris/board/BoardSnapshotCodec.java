@@ -1,7 +1,7 @@
 package game.tetris.board;
 
-import game.tetris.ITetrisReader;
-import game.tetris.Tetris;
+import game.tetris.ITetris;
+import game.tetris.Tetris_Client;
 import game.tetris.tetromino.TetrominoEnum;
 
 //======================================================================================================================
@@ -11,7 +11,7 @@ public final class BoardSnapshotCodec {
     private BoardSnapshotCodec() {
     }
 
-    public static String encode(ITetrisReader tetris) {
+    public static String encode(ITetris tetris) {
         int width = tetris.getWidth();
         int height = tetris.getHeight();
         StringBuilder snapshot = new StringBuilder(width * height);
@@ -27,7 +27,22 @@ public final class BoardSnapshotCodec {
         }
         return snapshot.toString();
     }
-    public static boolean apply(Tetris tetris, String snapshot) {
-        return tetris.applyBoardSnapshot(snapshot);
+
+    public static boolean apply(Board board, ActivePiece activePiece, String snapshot) {
+        if (!isValid(board, snapshot)) return false;
+
+        activePiece.clear();
+        return board.replaceFromSnapshot(snapshot);
+    }
+
+    private static boolean isValid(Board board, String snapshot) {
+        if (snapshot == null || snapshot.length() != board.getWidth() * board.getHeight()) return false;
+
+        int shapeCount = TetrominoEnum.values().length;
+        for (int i = 0; i < snapshot.length(); i++) {
+            int shapeIndex = snapshot.charAt(i) - 'A';
+            if (shapeIndex < 0 || shapeIndex >= shapeCount) return false;
+        }
+        return true;
     }
 }

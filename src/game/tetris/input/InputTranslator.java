@@ -7,16 +7,11 @@ public class InputTranslator {
     private final IInputSource inputSource;
     private final TetrisFlow flow;
     private final SettingsManager settings;
-        private InputData curInputData = new InputData();
-        private InputData preInputData = new InputData();
-
-    public InputTranslator(InputSourceType type, TetrisFlow flow)
-        {
-            this(type, flow, null);
-        }
+    private InputData curInputData = new InputData();
+    private InputData preInputData = new InputData();
 
     public InputTranslator(InputSourceType type, TetrisFlow flow, SettingsManager settings)
-        {
+    {
             this.flow = flow;
             this.settings = settings;
             inputSource = createInputSource(type);

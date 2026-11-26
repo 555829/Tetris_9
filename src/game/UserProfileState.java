@@ -7,7 +7,7 @@ import java.io.IOException;
 //======================================================================================================================
 // 로그인된 사용자 정보 저장하는 곳입니다
 //======================================================================================================================
-final class UserProfileState {
+public final class UserProfileState {
     private final String nickname;
     private final int money;
     private final int playCount;
@@ -34,12 +34,12 @@ final class UserProfileState {
         this.profileImage = profileImage == null ? null : profileImage.clone();
     }
 
-    static UserProfileState empty() {
+    public static UserProfileState empty() {
         return new UserProfileState("", 0, 0, "", "WHITE", true,
                 false, false, false, null);
     }
 
-    static UserProfileState fromUserInfoPacket(String[] tokens) {
+    public static UserProfileState fromUserInfoPacket(String[] tokens) {
         if (tokens == null || tokens.length < 10 || !"RES_USER_INFO".equals(tokens[0])
                 || "FAIL".equals(tokens[1])) return null;
 
@@ -58,24 +58,24 @@ final class UserProfileState {
                 "1".equals(tokens[8]), "1".equals(tokens[9]), image);
     }
 
-    UserProfileState withNickname(String value) {
+    public UserProfileState withNickname(String value) {
         return new UserProfileState(value, money, playCount, createdAt, equippedSkin,
                 hasWhiteCard, hasSilverCard, hasGoldCard, hasPlatinumCard, profileImage);
     }
 
-    UserProfileState withProfileImage(byte[] value) {
+    public UserProfileState withProfileImage(byte[] value) {
         return new UserProfileState(nickname, money, playCount, createdAt, equippedSkin,
                 hasWhiteCard, hasSilverCard, hasGoldCard, hasPlatinumCard, value);
     }
 
-    String getNickname() { return nickname; }
-    int getMoney() { return money; }
-    int getPlayCount() { return playCount; }
-    String getCreatedAt() { return createdAt; }
-    String getEquippedSkin() { return equippedSkin; }
-    boolean hasWhiteCard() { return hasWhiteCard; }
-    boolean hasSilverCard() { return hasSilverCard; }
-    boolean hasGoldCard() { return hasGoldCard; }
-    boolean hasPlatinumCard() { return hasPlatinumCard; }
-    byte[] getProfileImage() { return profileImage == null ? null : profileImage.clone(); }
+    public String getNickname() { return nickname; }
+    public int getMoney() { return money; }
+    public int getPlayCount() { return playCount; }
+    public String getCreatedAt() { return createdAt; }
+    public String getEquippedSkin() { return equippedSkin; }
+    public boolean hasWhiteCard() { return hasWhiteCard; }
+    public boolean hasSilverCard() { return hasSilverCard; }
+    public boolean hasGoldCard() { return hasGoldCard; }
+    public boolean hasPlatinumCard() { return hasPlatinumCard; }
+    public byte[] getProfileImage() { return profileImage == null ? null : profileImage.clone(); }
 }

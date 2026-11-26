@@ -23,9 +23,19 @@ public final class TetrisFlow
             0, 100, 300, 500, 800
     };
 
+    // 차일 확률은 레벨이 오를수록 커짐: 레벨 1에서 10%, 레벨마다 +5%, 최대 40%
+    private static final double KICK_CHANCE_BASE = 0.10;
+    private static final double KICK_CHANCE_PER_LEVEL = 0.05;
+    private static final double KICK_CHANCE_MAX = 0.40;
+    private static final int KICK_MIN_ROW = 3;
+    private static final int KICK_ROW_RANGE = 5;
     private static final int KICK_FRAMES = 120;
     private static final double KICK_SPEED = 0.3;
 
+    // 모양 바꾸기: 차기와 같은 확률표(레벨 1에서 10%, 레벨마다 +5%, 최대 40%)로 따로 뽑음
+    // 한 블록에 차기와 모양 바꾸기가 같이 일어나지는 않음
+    private static final int MORPH_MIN_ROW = 3;
+    private static final int MORPH_ROW_RANGE = 5;
     private static final int MORPH_FLASH_FRAMES = 30;
 
 
@@ -60,8 +70,9 @@ public final class TetrisFlow
 
     private final Random random;
     private KickedPiece kicked;      // null이면 차인 블록 없음
-    private final BlockEventScheduler events;   // 차기·모양 바꾸기를 언제 일으킬지 관리
+    private int kickAtRow = -1;      // -1이면 이번 블록은 차이지 않음
 
+    private int morphAtRow = -1;     // -1이면 이번 블록은 모양이 바뀌지 않음
     private int morphFlashFrames;    // 0보다 크면 방금 모양이 바뀐 것 (화면 번쩍임용)
     private int morphCount;          // 지금까지 모양이 바뀐 횟수 (AI가 이동 계획을 다시 세우는 데 사용)
 
@@ -81,7 +92,6 @@ public final class TetrisFlow
     {
         if (random == null) throw new IllegalArgumentException("Random is required");
         this.random = random;
-        this.events = new BlockEventScheduler(random);
         this.board = board;
         this.activePiece = activePiece;
         this.queue = queue;
@@ -276,12 +286,17 @@ public final class TetrisFlow
         if (!isPlaying())
             return false;
 
+        if (kickAtRow >= 0 && activePiece.getY() >= kickAtRow)
+        {
+            kick();
+            return false;
+        }
+
         if (morphFlashFrames > 0)
             morphFlashFrames--;
 
-        BlockEvent event = events.poll(activePiece.getY());
-        if (event != null && event.apply(this))
-            return false;
+        if (morphAtRow >= 0 && activePiece.getY() >= morphAtRow)
+            morph();
 
         gravityFrames++;
 
@@ -330,7 +345,7 @@ public final class TetrisFlow
                 KICK_FRAMES);
 
         activePiece.clear();
-        events.clear();
+        kickAtRow = -1;
 
         return true;
     }
@@ -341,6 +356,8 @@ public final class TetrisFlow
     {
         if (!isPlaying())
             return false;
+
+        morphAtRow = -1;
 
         TetrominoEnum current = activePiece.getShape().getType();
         TetrominoEnum[] types = TetrominoEnum.values();   // [0]은 NoShape
@@ -448,7 +465,13 @@ public final class TetrisFlow
         groundedFrames = 0;
         lockResets = 0;
 
-        events.schedule(level);
+        kickAtRow = random.nextDouble() < getKickChance()
+                ? KICK_MIN_ROW + random.nextInt(KICK_ROW_RANGE)
+                : -1;
+
+        morphAtRow = kickAtRow < 0 && random.nextDouble() < getKickChance()
+                ? MORPH_MIN_ROW + random.nextInt(MORPH_ROW_RANGE)
+                : -1;
         morphFlashFrames = 0;
 
         SpawnPosition spawn = SpawnPosition.find(board.getWidth(), board.getHeight(), type);
@@ -457,6 +480,12 @@ public final class TetrisFlow
     }
 
 
+    // 현재 레벨에서 새 블록이 차일 확률
+    private double getKickChance()
+    {
+        return Math.min(KICK_CHANCE_MAX,
+                KICK_CHANCE_BASE + (level - 1) * KICK_CHANCE_PER_LEVEL);
+    }
     // 레벨에 따른 자연 낙하 간격
     private int getGravityInterval()
     {

@@ -1,6 +1,5 @@
 package game.ui.outgame.popup;
 
-import game.NetworkManager;
 import game.ui.MainFrame;
 import game.ui.common.UIUtils;
 
@@ -44,8 +43,9 @@ public class LogoutPopup extends JPanel {
         noBtn.setMaximumSize(popupBtnSize);
 
         //버튼 역할 부여
-        yesBtn.addActionListener(e -> {
-            NetworkManager.getInstance().disconnect();
+        yesBtn.addActionListener(e ->
+        {
+            mainFrame.disconnectServer();
             mainFrame.hideLogoutPopup();
             mainFrame.showScreen(MainFrame.TAG_MENU);
         });

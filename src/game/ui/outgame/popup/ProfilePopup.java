@@ -1,6 +1,7 @@
 package game.ui.outgame.popup;
 
-import game.NetworkManager;
+import Network.NetworkHandler;
+import game.UserProfileState;
 import game.profile.ProfileImageCodec;
 import game.ui.MainFrame;
 import game.ui.common.UIUtils;
@@ -57,53 +58,55 @@ public class ProfilePopup extends JPanel {
 
         // 3. 현재 저장된 유저 정보 기반 UI 바인딩
         refreshData();
-        NetworkManager.getInstance().addPacketListener(this::handleNicknameResponse);
     }
 
-    /**
-     * NetworkManager의 현재 데이터를 기반으로 화면 컴포넌트를 갱신합니다.
-     */
-    /** 네트워크 프로필 상태를 다시 읽어 카드, 닉네임, 전적과 사진을 화면에 반영합니다. */
-    public void refreshData() {
-        NetworkManager net = NetworkManager.getInstance();
+    public void refreshData()
+    {
+        UserProfileState profile = mainFrame.getUserProfile();
 
-        // 메모리에 저장된 데이터 가져오기
-        this.nickname = net.getMyNickname();
-        this.playCount = net.getPlayCount();
-        this.createdAt = net.getCreatedAt();
-        this.money = net.getMoney();
+        this.nickname = profile.getNickname();
+        this.playCount = profile.getPlayCount();
+        this.createdAt = profile.getCreatedAt();
+        this.money = profile.getMoney();
 
-        // 1. 장착 중인 카드 스킨 배경 이미지 로드
-        loadBackgroundImage(net.getEquippedSkin());
+        loadBackgroundImage(profile.getEquippedSkin());
 
-        // 2. 텍스트 라벨 업데이트
-        if (nickLabel != null) {
-            nickLabel.setText((nickname == null || nickname.trim().isEmpty()) ? "미인증" : nickname);
+        if (nickLabel != null)
+        {
+            nickLabel.setText(
+                    (nickname == null || nickname.trim().isEmpty())
+                            ? "미인증" : nickname);
         }
-        if (playCountLabel != null) {
+
+        if (playCountLabel != null)
             playCountLabel.setText(playCount + "");
-        }
 
-        if (createAtLabel != null) {
+        if (createAtLabel != null)
             createAtLabel.setText(createdAt + "부터 함께함 ");
-        }
 
-        // 3. 프로필 이미지 업데이트 (Blob -> Base64 -> ImageIcon)
-        ImageIcon pic = net.getProfilePic();
-        if (pic != null && profileImgLabel != null) {
-            Image scaledImage = ProfileImageCodec.centerCropToSquare(pic.getImage())
-                    .getScaledInstance(82, 82, Image.SCALE_SMOOTH);
+        byte[] image = profile.getProfileImage();
+
+        if (image != null && image.length > 0 && profileImgLabel != null)
+        {
+            ImageIcon pic = new ImageIcon(image);
+
+            Image scaledImage =
+                    ProfileImageCodec.centerCropToSquare(pic.getImage())
+                            .getScaledInstance(82, 82, Image.SCALE_SMOOTH);
+
             profileImgLabel.setIcon(new ImageIcon(scaledImage));
             profileImgLabel.setText("");
-        } else if (profileImgLabel != null) {
-            profileImgLabel.setIcon(loadProfileImage("/game/asset/default_profile.png", 82, 82));
+        }
+        else if (profileImgLabel != null)
+        {
+            profileImgLabel.setIcon(
+                    loadProfileImage("/game/asset/default_profile.png", 82, 82));
             profileImgLabel.setText("");
         }
 
         revalidate();
         repaint();
     }
-
     // 장착 스킨에 따라 배경 이미지 로드
     private void loadBackgroundImage(String skinName) {
         if (skinName == null) skinName = "WHITE";
@@ -257,7 +260,7 @@ public class ProfilePopup extends JPanel {
             BufferedImage source = ImageIO.read(chooser.getSelectedFile());
             if (source == null) throw new IllegalArgumentException("지원하는 이미지 파일이 아닙니다.");
             String encoded = ProfileImageCodec.encodeForUpload(source);
-            NetworkManager.getInstance().requestProfilePic(encoded);
+            NetworkHandler.getInstance().requestProfilePic(encoded);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this,
                     "프로필 사진을 읽거나 전송할 수 없습니다: " + ex.getMessage(),
@@ -282,27 +285,7 @@ public class ProfilePopup extends JPanel {
                         "잘못된 닉네임", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            NetworkManager.getInstance().requestChangeNick(candidate);
-        }
-    }
-
-    private void handleNicknameResponse(String packet) {
-        if (packet == null) return;
-        if (packet.startsWith("RES_PIC_PROFILE|")) {
-            String[] imageTokens = packet.split("\\|", 3);
-            if (imageTokens.length >= 2 && "SUCCESS".equals(imageTokens[1])) {
-                refreshData();
-            } else if (imageTokens.length >= 3) {
-                JOptionPane.showMessageDialog(this, imageTokens[2], "프로필 사진 변경 실패", JOptionPane.WARNING_MESSAGE);
-            }
-            return;
-        }
-        if (!packet.startsWith("RES_CHANGE_NICK|")) return;
-        String[] tokens = packet.split("\\|", -1);
-        if (tokens.length >= 3 && "SUCCESS".equals(tokens[1])) {
-            refreshData();
-        } else if (tokens.length >= 3) {
-            JOptionPane.showMessageDialog(this, tokens[2], "닉네임 변경 실패", JOptionPane.WARNING_MESSAGE);
+            NetworkHandler.getInstance().requestChangeNick(candidate);
         }
     }
 
